@@ -1,0 +1,32 @@
+
+export enum TransactionType {
+  CREDIT = 'Credit',
+  DEBIT = 'Debit'
+}
+
+export interface Transaction {
+  id: string;
+  transactionDate: string;
+  amount: number;
+  type: TransactionType;
+  description: string;
+  category: string;
+  status: 'pending' | 'synced' | 'failed';
+  createdAt?: string;
+}
+
+export interface EmailData {
+  id: string;
+  snippet: string;
+  date: string;
+  body: string;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  name: string;
+  isDemo?: boolean;
+}
+
+export type ViewType = 'scanner' | 'reports';
