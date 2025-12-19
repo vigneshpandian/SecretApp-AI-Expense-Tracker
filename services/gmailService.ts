@@ -2,24 +2,31 @@
 import { EmailData } from "../types";
 
 /**
- * In a real-world scenario, you would use the Gmail API list messages method with a 'q' parameter.
- * Example query: "from:(sender1@example.com OR sender2@example.com) after:2024/05/20"
+ * In a real-world scenario, the backend would handle the Gmail API queries
+ * using the provided OAuth token and the q parameter.
  */
 
-export const fetchTodayEmails = async (senders: string[]): Promise<EmailData[]> => {
+export const fetchTodayEmails = async (senders: string[], dateFrom?: string, dateTo?: string): Promise<EmailData[]> => {
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 1200));
 
   const today = new Date().toISOString().split('T')[0];
 
-  // Mocked logic: Filter "database" of emails by selected senders
+  // Mocked email database
   const allMockEmails = [
     {
       sender: 'credit_cards@icicibank.com',
       id: "msg_001",
-      date: today,
+      date: "2024-05-20",
       snippet: "Transaction alert: INR 2,500.00 spent on your ICICI Bank Credit Card",
-      body: `Dear Customer, your ICICI Bank Credit Card XX1234 has been debited for INR 2,500.00 at AMAZON INDIA on ${today}. Info: CMS*AMZN.`
+      body: `Dear Customer, your ICICI Bank Credit Card XX1234 has been debited for INR 2,500.00 at AMAZON INDIA on 2024-05-20. Info: CMS*AMZN.`
+    },
+    {
+      sender: 'credit_cards@icicibank.com',
+      id: "msg_001_today",
+      date: today,
+      snippet: "Transaction alert: INR 1,200.00 spent on your ICICI Bank Credit Card",
+      body: `Dear Customer, your ICICI Bank Credit Card XX1234 has been debited for INR 1,200.00 at STARBUCKS on ${today}. Info: POS*SBUX.`
     },
     {
       sender: 'alerts@icicibank.com',
@@ -37,8 +44,13 @@ export const fetchTodayEmails = async (senders: string[]): Promise<EmailData[]> 
     }
   ];
 
-  // Only return emails that match the configured senders
-  return allMockEmails.filter(email => senders.includes(email.sender));
+  // Filter based on sender AND date range
+  return allMockEmails.filter(email => {
+    const matchesSender = senders.includes(email.sender);
+    const afterFrom = dateFrom ? email.date >= dateFrom : true;
+    const beforeTo = dateTo ? email.date <= dateTo : true;
+    return matchesSender && afterFrom && beforeTo;
+  });
 };
 
 export const syncToExternalApi = async (transactions: any[]): Promise<boolean> => {

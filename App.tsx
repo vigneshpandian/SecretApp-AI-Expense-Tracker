@@ -9,7 +9,7 @@ import { fetchTodayEmails } from './services/gmailService';
 import { extractTransactionsFromEmail } from './services/geminiService';
 import { api } from './services/apiService';
 import { Transaction, User, ViewType } from './types';
-import { Activity, BarChart3, LogOut, Search, Scan, Database, Info } from 'lucide-react';
+import { Activity, BarChart3, LogOut, Search, Scan, Database, Info, Calendar, RefreshCcw, Sparkles } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -20,6 +20,10 @@ const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [senders, setSenders] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+
+  // Transaction Scanner Date Range
+  const [scanDateFrom, setScanDateFrom] = useState(new Date().toISOString().split('T')[0]);
+  const [scanDateTo, setScanDateTo] = useState(new Date().toISOString().split('T')[0]);
 
   const isDemo = user?.isDemo || false;
 
@@ -44,14 +48,19 @@ const App: React.FC = () => {
     setLoading(true);
     setTransactions([]);
     try {
-      const emails = await fetchTodayEmails(senders);
+      // 1. Fetch relevant emails
+      const emails = await fetchTodayEmails(senders, scanDateFrom, scanDateTo);
+      
       if (emails.length > 0) {
         setExtracting(true);
         const allTransactions: Transaction[] = [];
+        
+        // 2. Extract using your .NET Backend Proxy (which calls Gemini)
         for (const email of emails) {
           const extracted = await extractTransactionsFromEmail(email.body);
           allTransactions.push(...extracted);
         }
+        
         setTransactions(allTransactions);
         setExtracting(false);
       }
@@ -60,13 +69,26 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [senders]);
+  }, [senders, scanDateFrom, scanDateTo]);
 
   const handleSync = async (tx: Transaction) => {
     setSyncing(true);
     try {
       await api.postTransactions([tx], isDemo);
       setTransactions(prev => prev.map(t => (t.id === tx.id) ? { ...t, status: 'synced' } : t));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleBulkSync = async () => {
+    const pending = transactions.filter(t => t.status !== 'synced');
+    if (pending.length === 0) return;
+    
+    setSyncing(true);
+    try {
+      await api.postTransactions(pending, isDemo);
+      setTransactions(prev => prev.map(t => ({ ...t, status: 'synced' })));
     } finally {
       setSyncing(false);
     }
@@ -92,8 +114,13 @@ const App: React.FC = () => {
   const toggleDemoMode = () => {
     if (user) {
       setUser({ ...user, isDemo: !user.isDemo });
-      setTransactions([]); // Clear current view
+      setTransactions([]); 
     }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('auth_token');
+    setUser(null);
   };
 
   if (!user) return <Login onLogin={setUser} />;
@@ -102,7 +129,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Header demoMode={isDemo} onToggleDemo={toggleDemoMode} />
       
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <nav className="flex -mb-px">
@@ -112,7 +139,7 @@ const App: React.FC = () => {
                   activeView === 'scanner' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
               >
-                <Scan size={18} /> Daily Scanner
+                <Scan size={18} /> Transaction Scanner
               </button>
               <button 
                 onClick={() => setActiveView('reports')}
@@ -124,7 +151,7 @@ const App: React.FC = () => {
               </button>
             </nav>
             <button 
-              onClick={() => setUser(null)}
+              onClick={handleLogout}
               className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50 flex items-center gap-2 text-xs font-bold"
             >
               <LogOut size={16} /> Logout
@@ -141,7 +168,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <p className="text-sm font-bold text-indigo-900">Demo Environment Active</p>
-              <p className="text-xs text-indigo-700 mt-0.5">You are viewing sample data. Changes made here will not affect your real accounts.</p>
+              <p className="text-xs text-indigo-700 mt-0.5">Mocking your future .NET API responses. Ready for deployment.</p>
             </div>
           </div>
         )}
@@ -150,38 +177,69 @@ const App: React.FC = () => {
           <div className="animate-in fade-in duration-500">
             <SenderManager senders={senders} onAdd={addSender} onRemove={removeSender} />
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">Today's Extractions</h2>
-                <p className="text-slate-500 text-sm">Automated scan results from configured bank senders</p>
-              </div>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <button 
-                  onClick={processEmails}
-                  disabled={loading || extracting}
-                  className="flex-grow sm:flex-grow-0 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
-                >
-                  <Search size={16} /> Scan Inbox
-                </button>
-                <button 
-                  onClick={() => {
-                    const pending = transactions.filter(t => t.status !== 'synced');
-                    api.postTransactions(pending, isDemo).then(() => {
-                      setTransactions(prev => prev.map(t => ({ ...t, status: 'synced' })));
-                    });
-                  }}
-                  disabled={syncing || transactions.length === 0 || transactions.every(t => t.status === 'synced')}
-                  className="flex-grow sm:flex-grow-0 px-4 py-2 bg-indigo-600 rounded-lg text-sm font-bold text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all"
-                >
-                  <Database size={16} className="inline mr-2" /> Sync to Records
-                </button>
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-8 shadow-sm">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                    <Calendar size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">Scan & Extract</h2>
+                    <p className="text-slate-500 text-sm mt-1">AI-powered ledger from your bank emails</p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">From Date</label>
+                    <input 
+                      type="date" 
+                      value={scanDateFrom}
+                      onChange={(e) => setScanDateFrom(e.target.value)}
+                      className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">To Date</label>
+                    <input 
+                      type="date" 
+                      value={scanDateTo}
+                      onChange={(e) => setScanDateTo(e.target.value)}
+                      className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={processEmails}
+                      disabled={loading || extracting}
+                      className="px-6 py-2.5 bg-indigo-600 rounded-xl text-sm font-bold text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {loading || extracting ? <RefreshCcw size={18} className="animate-spin" /> : <Search size={18} />}
+                      Scan Inbox
+                    </button>
+                    <button 
+                      onClick={handleBulkSync}
+                      disabled={syncing || transactions.length === 0 || transactions.every(t => t.status === 'synced')}
+                      className="px-6 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <Database size={18} />
+                      Sync All
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
             {loading ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-20 flex flex-col items-center gap-4 shadow-sm">
-                <Activity size={48} className="text-indigo-600 animate-pulse" />
-                <p className="text-slate-500 font-medium italic">Fetching emails from {senders.length} sources...</p>
+              <div className="bg-white rounded-3xl border border-slate-200 p-24 flex flex-col items-center gap-6 shadow-sm">
+                <div className="relative">
+                  <Activity size={64} className="text-indigo-600 animate-pulse" />
+                  <Sparkles size={24} className="text-purple-500 absolute -top-2 -right-2 animate-bounce" />
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-slate-900">{extracting ? 'Gemini AI Extracting Data...' : 'Retrieving Emails...'}</p>
+                  <p className="text-slate-400 text-sm mt-2 font-medium">Communicating with your .NET secure endpoint</p>
+                </div>
               </div>
             ) : (
               <TransactionTable 
@@ -198,11 +256,15 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="bg-white border-t border-slate-200 py-6 mt-8">
-        <div className="max-w-7xl mx-auto px-4 flex justify-between items-center text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-          <div>© 2024 SecretApp Ai • v2.0 Enterprise</div>
-          <div className="flex gap-4">
-            <span className="text-indigo-600">Active User: {user.name}</span>
+      <footer className="bg-white border-t border-slate-200 py-8 mt-12">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>System Status: Operational • v2.1-Ready</span>
+          </div>
+          <div>© 2024 SecretApp Ai • Enterprise Edition</div>
+          <div className="flex gap-6">
+            <span className="text-indigo-600">User Context: {user.name}</span>
           </div>
         </div>
       </footer>

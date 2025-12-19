@@ -1,50 +1,59 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction } from "../types";
+import { Transaction, TransactionType } from "../types";
 
-// Always use the process.env.API_KEY directly for initialization
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * .NET INTEGRATION HINT:
+ * Your [HttpPost("extract")] endpoint should return a JSON array 
+ * matching this structure:
+ * 
+ * [
+ *   {
+ *     "transactionDate": "YYYY-MM-DD",
+ *     "amount": 1250.50,
+ *     "type": "Debit",
+ *     "description": "Amazon India",
+ *     "category": "Shopping"
+ *   }
+ * ]
+ */
 
 export const extractTransactionsFromEmail = async (emailText: string): Promise<Transaction[]> => {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Extract transaction details from this bank notification email: "${emailText}"`,
-      config: {
-        systemInstruction: `You are an expert financial data analyst. 
-        Analyze bank transaction alert emails. 
-        Extract: Transaction Date, Amount (number), Type ('Credit' | 'Debit'), Description, and a likely Category (e.g., Shopping, Food, Utilities, Travel, Health, Salary, Other).
-        The description MUST have the value 'debited to the user' or a relevant summary if it is a credit.
-        Important: Return ONLY a JSON array of objects.`,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              transactionDate: { type: Type.STRING },
-              amount: { type: Type.NUMBER },
-              type: { type: Type.STRING, enum: ['Credit', 'Debit'] },
-              description: { type: Type.STRING },
-              category: { type: Type.STRING, description: "One of: Shopping, Food & Dining, Salary, Groceries, Utilities, Travel, Entertainment, Healthcare, Other" }
-            },
-            required: ["transactionDate", "amount", "type", "description", "category"]
-          }
-        }
-      }
+    const token = sessionStorage.getItem('auth_token');
+    
+    // This calls your future .NET Controller
+    const response = await fetch('/api/v1/transactions/extract', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify({ emailBody: emailText })
     });
 
-    const text = response.text;
-    if (!text) return [];
+    if (!response.ok) {
+      if (response.status === 401) throw new Error("Unauthorized: Invalid or expired token.");
+      throw new Error(`Backend Proxy Error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
     
-    const parsed = JSON.parse(text);
-    return parsed.map((item: any) => ({
-      ...item,
-      id: Math.random().toString(36).substr(2, 9),
-      status: 'pending'
+    if (!Array.isArray(data)) return [];
+
+    // Correctly mapping the response to the Transaction type by using TransactionType enum values
+    // This fixes the error where string literals "Credit" | "Debit" were not assignable to the enum type
+    return data.map((item: any) => ({
+      id: item.id || Math.random().toString(36).substring(2, 11),
+      transactionDate: item.transactionDate || new Date().toISOString().split('T')[0],
+      amount: Number(item.amount) || 0,
+      type: item.type === 'Credit' ? TransactionType.CREDIT : TransactionType.DEBIT,
+      description: item.description || 'Unknown Transaction',
+      category: item.category || 'Uncategorized',
+      status: 'pending' as const
     }));
   } catch (error) {
-    console.error("Error extracting data via Gemini:", error);
+    console.error("Extraction workflow failed:", error);
+    // Return empty to allow the UI to handle the empty state gracefully
     return [];
   }
 };

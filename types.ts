@@ -27,6 +27,7 @@ export interface User {
   username: string;
   name: string;
   isDemo?: boolean;
+  token?: string; // Store OAuth token here
 }
 
 export type ViewType = 'scanner' | 'reports';

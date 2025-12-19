@@ -1,8 +1,5 @@
 {
   "name": "Secret App Ai",
-  "description": "Automatically reads credit/debit alert emails from ICICI Bank for the current date, extracts transaction details using Gemini AI, and prepares them for API synchronization.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
+  "description": "Smart ledger that scans Gmail for bank alerts and extracts transaction data via a secure .NET backend proxy.",
+  "requestFramePermissions": []
 }

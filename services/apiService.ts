@@ -2,8 +2,27 @@
 import { Transaction, TransactionType, User } from "../types";
 
 /**
- * PRODUCTION SIMULATION
- * These represent the "Real" database state.
+ * PRODUCTION API CONFIGURATION
+ */
+const BASE_URL = '/api/v1';
+
+// Helper to get headers with OAuth token
+const getHeaders = () => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  // In production, the token would be stored in a secure cookie or session
+  const token = sessionStorage.getItem('auth_token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+};
+
+/**
+ * MOCK DB FOR DEMO MODE
  */
 const PROD_DB = {
   senders: ['credit_cards@icicibank.com'],
@@ -12,9 +31,6 @@ const PROD_DB = {
   users: [{ id: '1', username: 'admin', password: 'password123', name: 'John Doe' }]
 };
 
-/**
- * DEMO DATA GENERATION
- */
 const generateDemoData = (): Transaction[] => {
   const categories = PROD_DB.categories;
   const data: Transaction[] = [];
@@ -42,76 +58,76 @@ const generateDemoData = (): Transaction[] => {
   return data;
 };
 
-// Lazy initialization for demo data
 let DEMO_CACHE: Transaction[] | null = null;
 
-/**
- * API SERVICE
- * In a real app, 'isDemo' logic would branch between 'fetch()' calls 
- * and local state management.
- */
 export const api = {
   login: async (username: string, password: string): Promise<User | null> => {
-    // REST: GET /api/auth/login
+    // REAL: POST /api/auth/login
     await new Promise(r => setTimeout(r, 800));
     const user = PROD_DB.users.find(u => u.username === username && u.password === password);
-    return user ? { ...user, isDemo: false } : null;
+    if (user) {
+      // Simulate receiving a token from .NET Identity
+      sessionStorage.setItem('auth_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...');
+      return { ...user, isDemo: false };
+    }
+    return null;
   },
 
   getSenders: async (isDemo: boolean = false): Promise<string[]> => {
     if (isDemo) return ['demo@secretapp.ai', 'alerts@bank.com'];
-    // REST: GET /api/senders
+    
+    // PRODUCTION: GET /api/v1/senders
+    // const res = await fetch(`${BASE_URL}/senders`, { headers: getHeaders() });
+    // return res.json();
+    
     await new Promise(r => setTimeout(r, 400));
     return [...PROD_DB.senders];
   },
 
   postSender: async (sender: string, isDemo: boolean = false): Promise<void> => {
-    if (isDemo) return; // Don't persist in demo
-    // REST: POST /api/senders
+    if (isDemo) return;
+    // REAL: POST /api/v1/senders
     await new Promise(r => setTimeout(r, 400));
     if (!PROD_DB.senders.includes(sender)) PROD_DB.senders.push(sender);
   },
 
   deleteSender: async (sender: string, isDemo: boolean = false): Promise<void> => {
     if (isDemo) return;
-    // REST: DELETE /api/senders/${sender}
+    // REAL: DELETE /api/v1/senders/${sender}
     PROD_DB.senders = PROD_DB.senders.filter(s => s !== sender);
   },
 
   getCategories: async (): Promise<string[]> => {
-    // REST: GET /api/meta/categories
     return [...PROD_DB.categories];
   },
 
   getTransactions: async (filters: { dateFrom?: string; dateTo?: string; isDemo?: boolean }): Promise<Transaction[]> => {
-    await new Promise(r => setTimeout(r, 600));
-    
-    let baseData: Transaction[] = [];
     if (filters.isDemo) {
       if (!DEMO_CACHE) DEMO_CACHE = generateDemoData();
-      baseData = [...DEMO_CACHE];
-    } else {
-      // REST: GET /api/transactions?from=${dateFrom}&to=${dateTo}
-      baseData = [...PROD_DB.transactions];
+      let base = [...DEMO_CACHE];
+      if (filters.dateFrom) base = base.filter(t => t.transactionDate >= filters.dateFrom!);
+      if (filters.dateTo) base = base.filter(t => t.transactionDate <= filters.dateTo!);
+      return base;
     }
+
+    // PRODUCTION: GET /api/v1/transactions
+    // const params = new URLSearchParams(filters as any).toString();
+    // const res = await fetch(`${BASE_URL}/transactions?${params}`, { headers: getHeaders() });
+    // return res.json();
     
-    if (filters.dateFrom) {
-      baseData = baseData.filter(t => t.transactionDate >= filters.dateFrom!);
-    }
-    if (filters.dateTo) {
-      baseData = baseData.filter(t => t.transactionDate <= filters.dateTo!);
-    }
-    
+    await new Promise(r => setTimeout(r, 600));
+    let baseData = [...PROD_DB.transactions];
+    if (filters.dateFrom) baseData = baseData.filter(t => t.transactionDate >= filters.dateFrom!);
+    if (filters.dateTo) baseData = baseData.filter(t => t.transactionDate <= filters.dateTo!);
     return baseData;
   },
 
   postTransactions: async (txs: Transaction[], isDemo: boolean = false): Promise<void> => {
     if (isDemo) {
-      // Just simulate success
       await new Promise(r => setTimeout(r, 400));
       return;
     }
-    // REST: POST /api/transactions/bulk
+    // REAL: POST /api/v1/transactions/bulk
     await new Promise(r => setTimeout(r, 600));
     txs.forEach(tx => {
       const exists = PROD_DB.transactions.find(existing => 
@@ -133,7 +149,7 @@ export const api = {
       }
       return;
     }
-    // REST: PATCH /api/transactions/${id}
+    // REAL: PATCH /api/v1/transactions/${id}
     const idx = PROD_DB.transactions.findIndex(t => t.id === id);
     if (idx !== -1) {
       PROD_DB.transactions[idx] = { ...PROD_DB.transactions[idx], ...updates };
