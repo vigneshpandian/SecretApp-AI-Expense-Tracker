@@ -1,59 +1,65 @@
 
+import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, TransactionType } from "../types";
 
 /**
- * .NET INTEGRATION HINT:
- * Your [HttpPost("extract")] endpoint should return a JSON array 
- * matching this structure:
- * 
- * [
- *   {
- *     "transactionDate": "YYYY-MM-DD",
- *     "amount": 1250.50,
- *     "type": "Debit",
- *     "description": "Amazon India",
- *     "category": "Shopping"
- *   }
- * ]
+ * Uses Gemini 3 Flash to extract structured transaction data from ICICI Bank alert emails.
  */
-
 export const extractTransactionsFromEmail = async (emailText: string): Promise<Transaction[]> => {
   try {
-    const token = sessionStorage.getItem('auth_token');
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // This calls your future .NET Controller
-    const response = await fetch('/api/v1/transactions/extract', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : ''
-      },
-      body: JSON.stringify({ emailBody: emailText })
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Extract the transaction details from this ICICI Bank Credit Card alert. 
+      Email Content:
+      """
+      ${emailText}
+      """`,
+      config: {
+        systemInstruction: `You are a financial parsing expert for Indian Bank emails. 
+        Focus specifically on ICICI Bank Credit Card alerts. 
+        - Look for patterns like "Spent on your ICICI Bank Credit Card XX1234".
+        - Identify the Merchant (after 'at' or 'on').
+        - Identify the Amount (preceded by 'INR').
+        - Identify if it is a 'Spent' (Debit) or 'Refund/Payment' (Credit).
+        - Map to categories: Shopping, Food, Groceries, Travel, Utilities, Health, Entertainment, Others.`,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              transactionDate: { type: Type.STRING, description: "YYYY-MM-DD format" },
+              amount: { type: Type.NUMBER },
+              type: { type: Type.STRING, description: "'Credit' or 'Debit'" },
+              description: { type: Type.STRING, description: "The merchant name" },
+              category: { type: Type.STRING },
+              cardLast4: { type: Type.STRING, description: "The last 4 digits of the card used (e.g. 1234)" }
+            },
+            required: ["transactionDate", "amount", "type", "description", "category"]
+          }
+        }
+      }
     });
 
-    if (!response.ok) {
-      if (response.status === 401) throw new Error("Unauthorized: Invalid or expired token.");
-      throw new Error(`Backend Proxy Error: ${response.statusText}`);
-    }
+    const jsonStr = response.text?.trim();
+    if (!jsonStr) return [];
 
-    const data = await response.json();
+    const extractedData = JSON.parse(jsonStr);
     
-    if (!Array.isArray(data)) return [];
-
-    // Correctly mapping the response to the Transaction type by using TransactionType enum values
-    // This fixes the error where string literals "Credit" | "Debit" were not assignable to the enum type
-    return data.map((item: any) => ({
-      id: item.id || Math.random().toString(36).substring(2, 11),
-      transactionDate: item.transactionDate || new Date().toISOString().split('T')[0],
-      amount: Number(item.amount) || 0,
+    return extractedData.map((item: any) => ({
+      id: Math.random().toString(36).substring(2, 11),
+      transactionDate: item.transactionDate,
+      amount: item.amount,
       type: item.type === 'Credit' ? TransactionType.CREDIT : TransactionType.DEBIT,
-      description: item.description || 'Unknown Transaction',
-      category: item.category || 'Uncategorized',
+      description: item.description,
+      category: item.category,
+      cardLast4: item.cardLast4,
       status: 'pending' as const
     }));
   } catch (error) {
-    console.error("Extraction workflow failed:", error);
-    // Return empty to allow the UI to handle the empty state gracefully
+    console.error("Gemini Extraction failed:", error);
     return [];
   }
 };

@@ -11,12 +11,14 @@ export interface Transaction {
   type: TransactionType;
   description: string;
   category: string;
+  cardLast4?: string;
   status: 'pending' | 'synced' | 'failed';
   createdAt?: string;
 }
 
 export interface EmailData {
   id: string;
+  sender: string;
   snippet: string;
   date: string;
   body: string;
@@ -27,7 +29,7 @@ export interface User {
   username: string;
   name: string;
   isDemo?: boolean;
-  token?: string; // Store OAuth token here
+  token?: string;
 }
 
 export type ViewType = 'scanner' | 'reports';
