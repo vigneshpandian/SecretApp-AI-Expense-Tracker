@@ -24,7 +24,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
       if (user) {
         onLogin(user);
       } else {
-        setError('Invalid credentials. Hint: admin / password123');
+        setError('Login failed. Check your credentials!');
       }
     } catch (err) {
       setError('Connection failed. Please try again.');

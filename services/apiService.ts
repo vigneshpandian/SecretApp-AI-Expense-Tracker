@@ -4,7 +4,8 @@ import { Transaction, TransactionType, User } from "../types";
 /**
  * PRODUCTION API CONFIGURATION
  */
-const BASE_URL = '/api/v1';
+const BASE_URL = import.meta.env.VITE_BASE_URL || '/api/v1';
+console.log('BASE_URL:', BASE_URL);
 
 // Helper to get headers with OAuth token
 const getHeaders = () => {
@@ -27,8 +28,7 @@ const getHeaders = () => {
 const PROD_DB = {
   senders: ['credit_cards@icicibank.com'],
   transactions: [] as Transaction[],
-  categories: ['Shopping', 'Food & Dining', 'Salary', 'Groceries', 'Utilities', 'Travel', 'Entertainment', 'Healthcare'],
-  users: [{ id: '1', username: 'admin', password: 'password123', name: 'John Doe' }]
+  categories: ['Shopping', 'Food & Dining', 'Salary', 'Groceries', 'Utilities', 'Travel', 'Entertainment', 'Healthcare']
 };
 
 const generateDemoData = (): Transaction[] => {
@@ -58,19 +58,43 @@ const generateDemoData = (): Transaction[] => {
   return data;
 };
 
-let DEMO_CACHE: Transaction[] | null = null;
+// Helper to decode JWT payload
+const decodeJWT = (token: string) => {
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload));
+  } catch {
+    return null;
+  }
+};
 
 export const api = {
   login: async (username: string, password: string): Promise<User | null> => {
-    // REAL: POST /api/auth/login
-    await new Promise(r => setTimeout(r, 800));
-    const user = PROD_DB.users.find(u => u.username === username && u.password === password);
-    if (user) {
-      // Simulate receiving a token from .NET Identity
-      sessionStorage.setItem('auth_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...');
-      return { ...user, isDemo: false };
+    try {
+      const response = await fetch(`${BASE_URL}/auth/Authorize?name=${encodeURIComponent(username)}&pwd=${encodeURIComponent(password)}`);
+      if (!response.ok) return null;
+      
+      const data = await response.json();
+      const token = data.access_token;
+      
+      sessionStorage.setItem('auth_token', token);
+      
+      // Decode token to extract user info
+      const payload = decodeJWT(token);
+      if (!payload) return null;
+      
+      const user: User = {
+        id: payload.jti,
+        username: payload.sub,
+        name: `${payload.FirstName} ${payload.LastName}`,
+        isDemo: false
+      };
+      
+      return user;
+    } catch (error) {
+      console.error('Login failed:', error);
+      return null;
     }
-    return null;
   },
 
   getSenders: async (isDemo: boolean = false): Promise<string[]> => {
