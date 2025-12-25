@@ -1,7 +1,8 @@
 
 export enum TransactionType {
   CREDIT = 'Credit',
-  DEBIT = 'Debit'
+  DEBIT = 'Debit',
+  INVESTMENT = 'Investment'
 }
 
 export interface Transaction {

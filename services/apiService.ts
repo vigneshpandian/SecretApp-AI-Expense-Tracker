@@ -31,6 +31,8 @@ const PROD_DB = {
   categories: ['Shopping', 'Food & Dining', 'Salary', 'Groceries', 'Utilities', 'Travel', 'Entertainment', 'Healthcare']
 };
 
+let DEMO_CACHE: Transaction[] | null = null;
+
 const generateDemoData = (): Transaction[] => {
   const categories = PROD_DB.categories;
   const data: Transaction[] = [];
@@ -122,10 +124,25 @@ export const api = {
   },
 
   getCategories: async (): Promise<string[]> => {
-    return [...PROD_DB.categories];
+    const cached = sessionStorage.getItem('categories');
+    if (cached) {
+      return JSON.parse(cached);
+    }
+    
+    try {
+      const res = await fetch(`${BASE_URL}/configuration/category/all`, { headers: getHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch categories');
+      const data = await res.json();
+      const categories = data.map((item: any) => item.categoryName);
+      sessionStorage.setItem('categories', JSON.stringify(categories));
+      return categories;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      return [];
+    }
   },
 
-  getTransactions: async (filters: { dateFrom?: string; dateTo?: string; isDemo?: boolean }): Promise<Transaction[]> => {
+  getTransactions: async (filters: { dateFrom?: string; dateTo?: string; categories?: string[]; ledgerType?: string[]; isDemo?: boolean }): Promise<Transaction[]> => {
     if (filters.isDemo) {
       if (!DEMO_CACHE) DEMO_CACHE = generateDemoData();
       let base = [...DEMO_CACHE];
@@ -134,16 +151,44 @@ export const api = {
       return base;
     }
 
-    // PRODUCTION: GET /api/v1/transactions
-    // const params = new URLSearchParams(filters as any).toString();
-    // const res = await fetch(`${BASE_URL}/transactions?${params}`, { headers: getHeaders() });
-    // return res.json();
-    
-    await new Promise(r => setTimeout(r, 600));
-    let baseData = [...PROD_DB.transactions];
-    if (filters.dateFrom) baseData = baseData.filter(t => t.transactionDate >= filters.dateFrom!);
-    if (filters.dateTo) baseData = baseData.filter(t => t.transactionDate <= filters.dateTo!);
-    return baseData;
+    try {
+      const startDate = filters.dateFrom ? `${filters.dateFrom}T00:00:00` : new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0] + 'T00:00:00';
+      const endDate = filters.dateTo ? `${filters.dateTo}T00:00:00` : new Date().toISOString().split('T')[0] + 'T00:00:00';
+
+      const body = {
+        startDate,
+        endDate,
+        isCCTransaction: false,
+        isCashTransaction: false,
+        categories: filters.categories || [],
+        ledgerType: filters.ledgerType || []
+      };
+
+      const res = await fetch(`${BASE_URL}/statistics/ledgerReport`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) throw new Error('Failed to fetch transactions');
+
+      const data = await res.json();
+      const transactions: Transaction[] = data.secretUserTransactions.map((item: any) => ({
+        id: item.ledgerId,
+        transactionDate: item.transactionDate,
+        amount: parseFloat(item.transactionAmount),
+        type: item.ledgerType === 'Expense' ? TransactionType.DEBIT : item.ledgerType === 'Income' ? TransactionType.CREDIT : item.ledgerType === 'Investments' ? TransactionType.INVESTMENT : TransactionType.DEBIT,
+        description: item.transactionNotes,
+        category: item.categoryName,
+        status: 'synced',
+        createdAt: item.createdDate
+      }));
+
+      return transactions;
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      return [];
+    }
   },
 
   postTransactions: async (txs: Transaction[], isDemo: boolean = false): Promise<void> => {
@@ -165,18 +210,8 @@ export const api = {
     });
   },
 
-  updateTransaction: async (id: string, updates: Partial<Transaction>, isDemo: boolean = false): Promise<void> => {
-    if (isDemo) {
-      if (DEMO_CACHE) {
-        const idx = DEMO_CACHE.findIndex(t => t.id === id);
-        if (idx !== -1) DEMO_CACHE[idx] = { ...DEMO_CACHE[idx], ...updates };
-      }
-      return;
-    }
-    // REAL: PATCH /api/v1/transactions/${id}
-    const idx = PROD_DB.transactions.findIndex(t => t.id === id);
-    if (idx !== -1) {
-      PROD_DB.transactions[idx] = { ...PROD_DB.transactions[idx], ...updates };
-    }
-  }
+  logout: () => {
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('categories');
+  },
 };

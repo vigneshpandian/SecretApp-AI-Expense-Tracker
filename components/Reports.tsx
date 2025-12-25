@@ -10,43 +10,48 @@ interface Props {
 }
 
 const Reports: React.FC<Props> = ({ demoMode }) => {
+  const today = new Date();
+  const defaultDateFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+  const defaultDateTo = today.toISOString().split('T')[0];
+
   const [data, setData] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   
   // Filters
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [filterType, setFilterType] = useState<'All' | TransactionType>('All');
+  const [dateFrom, setDateFrom] = useState(defaultDateFrom);
+  const [dateTo, setDateTo] = useState(defaultDateTo);
+  const [filterType, setFilterType] = useState<'All' | 'Both' | TransactionType>('All');
   const [filterCategory, setFilterCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchInitialData();
-  }, [demoMode, dateFrom, dateTo]);
+  }, [demoMode, dateFrom, dateTo, filterType, filterCategory]);
 
   const fetchInitialData = async () => {
     setLoading(true);
-    const [txs, cats] = await Promise.all([
-      api.getTransactions({ dateFrom, dateTo, isDemo: demoMode }),
+    const ledgerType = (filterType === 'All' || filterType === 'Both') ? [] : filterType === TransactionType.CREDIT ? ['Income'] : filterType === TransactionType.DEBIT ? ['Expense'] : filterType === TransactionType.INVESTMENT ? ['Investments'] : [];
+    const cats = filterCategory === 'All' ? [] : [filterCategory];
+    const [txs, catsList] = await Promise.all([
+      api.getTransactions({ dateFrom, dateTo, categories: cats, ledgerType, isDemo: demoMode }),
       api.getCategories()
     ]);
     setData(txs);
-    setCategories(cats);
+    setCategories(catsList);
     setLoading(false);
   };
 
   const filteredData = data.filter(t => {
     const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           t.amount.toString().includes(searchTerm);
-    const matchesType = filterType === 'All' || t.type === filterType;
-    const matchesCategory = filterCategory === 'All' || t.category === filterCategory;
-    return matchesSearch && matchesType && matchesCategory;
+    return matchesSearch;
   });
 
   const chartData = [
     { name: 'Credits', value: filteredData.filter(t => t.type === TransactionType.CREDIT).reduce((acc, t) => acc + t.amount, 0) },
     { name: 'Debits', value: filteredData.filter(t => t.type === TransactionType.DEBIT).reduce((acc, t) => acc + t.amount, 0) },
+    { name: 'Investments', value: filteredData.filter(t => t.type === TransactionType.INVESTMENT).reduce((acc, t) => acc + t.amount, 0) },
   ];
 
   const categoryChartData = categories.map(cat => ({
@@ -86,8 +91,10 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
             className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="All">All Types</option>
+            <option value="Both">Both</option>
             <option value={TransactionType.CREDIT}>Credits</option>
             <option value={TransactionType.DEBIT}>Debits</option>
+            <option value={TransactionType.INVESTMENT}>Investments</option>
           </select>
         </div>
         <div className="flex flex-col gap-1">
@@ -175,12 +182,12 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                          tx.type === TransactionType.CREDIT ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          tx.type === TransactionType.CREDIT ? 'bg-green-100 text-green-700' : tx.type === TransactionType.DEBIT ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
                         }`}>
                           {tx.type}
                         </span>
                       </td>
-                      <td className={`px-6 py-4 text-sm font-bold text-right ${tx.type === TransactionType.CREDIT ? 'text-green-600' : 'text-slate-900'}`}>
+                      <td className={`px-6 py-4 text-sm font-bold text-right ${tx.type === TransactionType.CREDIT ? 'text-green-600' : tx.type === TransactionType.DEBIT ? 'text-slate-900' : 'text-blue-600'}`}>
                         ₹{tx.amount.toLocaleString('en-IN')}
                       </td>
                     </tr>
