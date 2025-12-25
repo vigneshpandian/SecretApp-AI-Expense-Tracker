@@ -17,6 +17,11 @@ export interface Transaction {
   createdAt?: string;
 }
 
+export interface Sender {
+  email: string;
+  rowKey: string;
+}
+
 export interface EmailData {
   id: string;
   sender: string;

@@ -1,5 +1,5 @@
 
-import { Transaction, TransactionType, User } from "../types";
+import { Transaction, TransactionType, User, Sender } from "../types";
 
 /**
  * PRODUCTION API CONFIGURATION
@@ -12,8 +12,7 @@ const getHeaders = () => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
-  
-  // In production, the token would be stored in a secure cookie or session
+    // In production, the token would be stored in a secure cookie or session
   const token = sessionStorage.getItem('auth_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -99,28 +98,47 @@ export const api = {
     }
   },
 
-  getSenders: async (isDemo: boolean = false): Promise<string[]> => {
-    if (isDemo) return ['demo@secretapp.ai', 'alerts@bank.com'];
+  getSenders: async (isDemo: boolean = false): Promise<Sender[]> => {
+    if (isDemo) return [{ email: 'demo@secretapp.ai', rowKey: 'demo1' }, { email: 'alerts@bank.com', rowKey: 'demo2' }];
     
-    // PRODUCTION: GET /api/v1/senders
-    // const res = await fetch(`${BASE_URL}/senders`, { headers: getHeaders() });
-    // return res.json();
-    
-    await new Promise(r => setTimeout(r, 400));
-    return [...PROD_DB.senders];
+    try {
+      const res = await fetch(`${BASE_URL}/configuration/trackers`, { headers: getHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch senders');
+      const data = await res.json();
+      return data.map((item: any) => ({ email: item.senderEmail, rowKey: item.rowKey }));
+    } catch (error) {
+      console.error('Error fetching senders:', error);
+      return [];
+    }
   },
 
   postSender: async (sender: string, isDemo: boolean = false): Promise<void> => {
     if (isDemo) return;
-    // REAL: POST /api/v1/senders
-    await new Promise(r => setTimeout(r, 400));
-    if (!PROD_DB.senders.includes(sender)) PROD_DB.senders.push(sender);
+    try {
+      const res = await fetch(`${BASE_URL}/configuration/trackers`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ TrackingEmail: sender })
+      });
+      if (!res.ok) throw new Error('Failed to add sender');
+    } catch (error) {
+      console.error('Error adding sender:', error);
+      throw error;
+    }
   },
 
-  deleteSender: async (sender: string, isDemo: boolean = false): Promise<void> => {
+  deleteSender: async (rowKey: string, isDemo: boolean = false): Promise<void> => {
     if (isDemo) return;
-    // REAL: DELETE /api/v1/senders/${sender}
-    PROD_DB.senders = PROD_DB.senders.filter(s => s !== sender);
+    try {
+      const res = await fetch(`${BASE_URL}/configuration/trackers/${rowKey}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (!res.ok) throw new Error('Failed to delete sender');
+    } catch (error) {
+      console.error('Error deleting sender:', error);
+      throw error;
+    }
   },
 
   getCategories: async (): Promise<string[]> => {

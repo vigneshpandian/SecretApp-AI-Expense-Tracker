@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
+import { Sender } from '../types';
 
 interface Props {
-  senders: string[];
+  senders: Sender[];
   onAdd: (sender: string) => void;
-  onRemove: (sender: string) => void;
+  onRemove: (rowKey: string) => void;
 }
 
 const SenderManager: React.FC<Props> = ({ senders, onAdd, onRemove }) => {
@@ -13,7 +14,7 @@ const SenderManager: React.FC<Props> = ({ senders, onAdd, onRemove }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newSender && !senders.includes(newSender)) {
+    if (newSender && !senders.some(s => s.email === newSender.toLowerCase())) {
       onAdd(newSender.toLowerCase());
       setNewSender('');
     }
@@ -58,10 +59,10 @@ const SenderManager: React.FC<Props> = ({ senders, onAdd, onRemove }) => {
 
           <div className="flex flex-wrap gap-2">
             {senders.map(sender => (
-              <div key={sender} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-full group">
-                <span className="text-xs font-medium text-slate-600">{sender}</span>
+              <div key={sender.rowKey} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-full group">
+                <span className="text-xs font-medium text-slate-600">{sender.email}</span>
                 <button 
-                  onClick={() => onRemove(sender)}
+                  onClick={() => onRemove(sender.rowKey)}
                   className="text-slate-400 hover:text-red-500 transition-colors"
                   title="Remove sender"
                 >

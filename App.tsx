@@ -8,7 +8,7 @@ import Reports from './components/Reports';
 import { fetchTodayEmails } from './services/gmailService';
 import { extractTransactionsFromEmail } from './services/geminiService';
 import { api } from './services/apiService';
-import { Transaction, User, ViewType } from './types';
+import { Transaction, User, ViewType, Sender } from './types';
 import { Activity, BarChart3, LogOut, Search, Scan, Database, Info, Calendar, RefreshCcw, Sparkles } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -18,7 +18,7 @@ const App: React.FC = () => {
   const [extracting, setExtracting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [senders, setSenders] = useState<string[]>([]);
+  const [senders, setSenders] = useState<Sender[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
 
   // Transaction Scanner Date Range
@@ -49,7 +49,7 @@ const App: React.FC = () => {
     setTransactions([]);
     try {
       // 1. Fetch relevant emails
-      const emails = await fetchTodayEmails(senders, scanDateFrom, scanDateTo);
+      const emails = await fetchTodayEmails(senders.map(s => s.email), scanDateFrom, scanDateTo);
       
       if (emails.length > 0) {
         setExtracting(true);
@@ -105,8 +105,8 @@ const App: React.FC = () => {
     setSenders(s);
   };
 
-  const removeSender = async (email: string) => {
-    await api.deleteSender(email, isDemo);
+  const removeSender = async (rowKey: string) => {
+    await api.deleteSender(rowKey, isDemo);
     const s = await api.getSenders(isDemo);
     setSenders(s);
   };
