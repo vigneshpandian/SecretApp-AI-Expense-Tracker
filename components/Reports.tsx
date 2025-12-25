@@ -21,8 +21,12 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
   // Filters
   const [dateFrom, setDateFrom] = useState(defaultDateFrom);
   const [dateTo, setDateTo] = useState(defaultDateTo);
-  const [filterType, setFilterType] = useState<'All' | 'Both' | TransactionType>('All');
-  const [filterCategory, setFilterCategory] = useState('All');
+  const [filterType, setFilterType] = useState<TransactionType[]>([TransactionType.CREDIT, TransactionType.DEBIT]);
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
+  const [typeSearch, setTypeSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState<string[]>([]);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -31,8 +35,8 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
 
   const fetchInitialData = async () => {
     setLoading(true);
-    const ledgerType = (filterType === 'All' || filterType === 'Both') ? [] : filterType === TransactionType.CREDIT ? ['Income'] : filterType === TransactionType.DEBIT ? ['Expense'] : filterType === TransactionType.INVESTMENT ? ['Investments'] : [];
-    const cats = filterCategory === 'All' ? [] : [filterCategory];
+    const ledgerType = filterType.flatMap(t => t === TransactionType.CREDIT ? ['Income'] : t === TransactionType.DEBIT ? ['Expense'] : ['Investments']);
+    const cats = filterCategory;
     const [txs, catsList] = await Promise.all([
       api.getTransactions({ dateFrom, dateTo, categories: cats, ledgerType, isDemo: demoMode }),
       api.getCategories()
@@ -84,29 +88,86 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-400 uppercase">Type</label>
-          <select 
-            value={filterType} 
-            onChange={e => setFilterType(e.target.value as any)}
-            className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="All">All Types</option>
-            <option value="Both">Both</option>
-            <option value={TransactionType.CREDIT}>Credits</option>
-            <option value={TransactionType.DEBIT}>Debits</option>
-            <option value={TransactionType.INVESTMENT}>Investments</option>
-          </select>
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Types</label>
+          <div className="relative">
+            <div 
+              className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 cursor-pointer outline-none focus:ring-1 focus:ring-indigo-500"
+              onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+            >
+              {filterType.length === 0 ? 'All Types' : filterType.join(', ')}
+            </div>
+            {isTypeDropdownOpen && (
+              <div className="absolute top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-10 w-full max-h-48 overflow-y-auto">
+                <input 
+                  type="text" 
+                  placeholder="Search types..." 
+                  value={typeSearch} 
+                  onChange={e => setTypeSearch(e.target.value)} 
+                  className="w-full px-2 py-1 text-xs border-b border-slate-200 outline-none"
+                />
+                <div className="p-2 space-y-1">
+                  {[TransactionType.CREDIT, TransactionType.DEBIT, TransactionType.INVESTMENT].filter(t => t.toLowerCase().includes(typeSearch.toLowerCase())).map(t => (
+                    <label key={t} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+                      <input 
+                        type="checkbox" 
+                        checked={filterType.includes(t)} 
+                        onChange={() => {
+                          if (filterType.includes(t)) {
+                            setFilterType(filterType.filter(type => type !== t));
+                          } else {
+                            setFilterType([...filterType, t]);
+                          }
+                        }}
+                        className="w-3 h-3"
+                      />
+                      {t}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-400 uppercase">Category</label>
-          <select 
-            value={filterCategory} 
-            onChange={e => setFilterCategory(e.target.value)}
-            className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="All">All Categories</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Categories</label>
+          <div className="relative">
+            <div 
+              className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 cursor-pointer outline-none focus:ring-1 focus:ring-indigo-500"
+              onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+            >
+              {filterCategory.length === 0 ? 'All Categories' : filterCategory.join(', ')}
+            </div>
+            {isCategoryDropdownOpen && (
+              <div className="absolute top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-10 w-full max-h-48 overflow-y-auto">
+                <input 
+                  type="text" 
+                  placeholder="Search categories..." 
+                  value={categorySearch} 
+                  onChange={e => setCategorySearch(e.target.value)} 
+                  className="w-full px-2 py-1 text-xs border-b border-slate-200 outline-none"
+                />
+                <div className="p-2 space-y-1">
+                  {categories.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).map(c => (
+                    <label key={c} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+                      <input 
+                        type="checkbox" 
+                        checked={filterCategory.includes(c)} 
+                        onChange={() => {
+                          if (filterCategory.includes(c)) {
+                            setFilterCategory(filterCategory.filter(cat => cat !== c));
+                          } else {
+                            setFilterCategory([...filterCategory, c]);
+                          }
+                        }}
+                        className="w-3 h-3"
+                      />
+                      {c}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-[10px] font-bold text-slate-400 uppercase">Search</label>
@@ -182,12 +243,12 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                          tx.type === TransactionType.CREDIT ? 'bg-green-100 text-green-700' : tx.type === TransactionType.DEBIT ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                          tx.type === TransactionType.CREDIT ? 'bg-green-100 text-green-700' : tx.type === TransactionType.DEBIT ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                         }`}>
                           {tx.type}
                         </span>
                       </td>
-                      <td className={`px-6 py-4 text-sm font-bold text-right ${tx.type === TransactionType.CREDIT ? 'text-green-600' : tx.type === TransactionType.DEBIT ? 'text-slate-900' : 'text-blue-600'}`}>
+                      <td className={`px-6 py-4 text-sm font-bold text-right ${tx.type === TransactionType.CREDIT ? 'text-green-600' : tx.type === TransactionType.DEBIT ? 'text-slate-900' : 'text-green-600'}`}>
                         ₹{tx.amount.toLocaleString('en-IN')}
                       </td>
                     </tr>
