@@ -39,7 +39,7 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
     const cats = filterCategory;
     const [txs, catsList] = await Promise.all([
       api.getTransactions({ dateFrom, dateTo, categories: cats, ledgerType, isDemo: demoMode }),
-      api.getCategories()
+      api.getCategories(demoMode)
     ]);
     setData(txs);
     setCategories(catsList);

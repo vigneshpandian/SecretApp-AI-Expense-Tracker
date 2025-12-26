@@ -141,7 +141,11 @@ export const api = {
     }
   },
 
-  getCategories: async (): Promise<string[]> => {
+  getCategories: async (isDemo: boolean = false): Promise<string[]> => {
+    if (isDemo) {
+      return PROD_DB.categories;
+    }
+    
     const cached = sessionStorage.getItem('categories');
     if (cached) {
       return JSON.parse(cached);
@@ -226,6 +230,63 @@ export const api = {
         PROD_DB.transactions.push({ ...tx, status: 'synced', createdAt: new Date().toISOString() });
       }
     });
+  },
+
+  extractTransactionsFromEmail: async (emailText: string, isDemo: boolean = false): Promise<Transaction[]> => {
+    if (isDemo) {
+      // In demo mode, return mock extracted transactions
+      await new Promise(r => setTimeout(r, 800));
+      const mockTransactions: Transaction[] = [
+        {
+          id: `extracted_demo_${Date.now()}_1`,
+          transactionDate: new Date().toISOString().split('T')[0],
+          amount: 2500,
+          type: TransactionType.DEBIT,
+          description: "AMAZON INDIA",
+          category: "Shopping",
+          status: 'pending',
+          cardLast4: '1234'
+        },
+        {
+          id: `extracted_demo_${Date.now()}_2`,
+          transactionDate: new Date().toISOString().split('T')[0],
+          amount: 450,
+          type: TransactionType.DEBIT,
+          description: "ZOMATO",
+          category: "Food & Dining",
+          status: 'pending',
+          cardLast4: '4321'
+        }
+      ];
+      return mockTransactions;
+    }
+
+    try {
+      const res = await fetch(`${BASE_URL}/ai/extract-transactions`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ emailText })
+      });
+
+      if (!res.ok) throw new Error('Failed to extract transactions');
+
+      const data = await res.json();
+      const transactions: Transaction[] = data.transactions.map((item: any) => ({
+        id: item.id || Math.random().toString(36).substring(2, 11),
+        transactionDate: item.transactionDate,
+        amount: item.amount,
+        type: item.type === 'Credit' ? TransactionType.CREDIT : TransactionType.DEBIT,
+        description: item.description,
+        category: item.category,
+        cardLast4: item.cardLast4,
+        status: 'pending'
+      }));
+
+      return transactions;
+    } catch (error) {
+      console.error('Error extracting transactions:', error);
+      return [];
+    }
   },
 
   logout: () => {

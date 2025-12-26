@@ -36,7 +36,7 @@ const App: React.FC = () => {
   const loadInitialAppData = async () => {
     const [s, c] = await Promise.all([
       api.getSenders(isDemo), 
-      api.getCategories()
+      api.getCategories(isDemo)
     ]);
     setSenders(s);
     setCategories(c);
@@ -48,28 +48,38 @@ const App: React.FC = () => {
     setLoading(true);
     setTransactions([]);
     try {
-      // 1. Fetch relevant emails
-      const emails = await fetchTodayEmails(senders.map(s => s.email), scanDateFrom, scanDateTo);
-      
-      if (emails.length > 0) {
-        setExtracting(true);
-        const allTransactions: Transaction[] = [];
+      if (isDemo) {
+        // In demo mode, fetch demo transactions from API
+        const demoTransactions = await api.getTransactions({ 
+          dateFrom: scanDateFrom, 
+          dateTo: scanDateTo, 
+          isDemo: true 
+        });
+        setTransactions(demoTransactions);
+      } else {
+        // 1. Fetch relevant emails
+        const emails = await fetchTodayEmails(senders.map(s => s.email), scanDateFrom, scanDateTo);
         
-        // 2. Extract using your .NET Backend Proxy (which calls Gemini)
-        for (const email of emails) {
-          const extracted = await extractTransactionsFromEmail(email.body);
-          allTransactions.push(...extracted);
+        if (emails.length > 0) {
+          setExtracting(true);
+          const allTransactions: Transaction[] = [];
+          
+          // 2. Extract using your .NET Backend Proxy (which calls Gemini)
+          for (const email of emails) {
+            const extracted = await extractTransactionsFromEmail(email.body);
+            allTransactions.push(...extracted);
+          }
+          
+          setTransactions(allTransactions);
+          setExtracting(false);
         }
-        
-        setTransactions(allTransactions);
-        setExtracting(false);
       }
     } catch (error) {
       console.error("Workflow error:", error);
     } finally {
       setLoading(false);
     }
-  }, [senders, scanDateFrom, scanDateTo]);
+  }, [senders, scanDateFrom, scanDateTo, isDemo]);
 
   const handleSync = async (tx: Transaction) => {
     setSyncing(true);
