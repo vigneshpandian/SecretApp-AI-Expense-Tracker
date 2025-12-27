@@ -5,8 +5,6 @@ import TransactionTable from './components/TransactionTable';
 import SenderManager from './components/SenderManager';
 import Login from './components/Login';
 import Reports from './components/Reports';
-import { fetchTodayEmails } from './services/gmailService';
-import { extractTransactionsFromEmail } from './services/geminiService';
 import { api } from './services/apiService';
 import { Transaction, User, ViewType, Sender } from './types';
 import { Activity, BarChart3, LogOut, Search, Scan, Database, Info, Calendar, RefreshCcw, Sparkles } from 'lucide-react';
@@ -15,7 +13,6 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeView, setActiveView] = useState<ViewType>('scanner');
   const [loading, setLoading] = useState(false);
-  const [extracting, setExtracting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [senders, setSenders] = useState<Sender[]>([]);
@@ -48,32 +45,8 @@ const App: React.FC = () => {
     setLoading(true);
     setTransactions([]);
     try {
-      if (isDemo) {
-        // In demo mode, fetch demo transactions from API
-        const demoTransactions = await api.getTransactions({ 
-          dateFrom: scanDateFrom, 
-          dateTo: scanDateTo, 
-          isDemo: true 
-        });
-        setTransactions(demoTransactions);
-      } else {
-        // 1. Fetch relevant emails
-        const emails = await fetchTodayEmails(senders.map(s => s.email), scanDateFrom, scanDateTo);
-        
-        if (emails.length > 0) {
-          setExtracting(true);
-          const allTransactions: Transaction[] = [];
-          
-          // 2. Extract using your .NET Backend Proxy (which calls Gemini)
-          for (const email of emails) {
-            const extracted = await extractTransactionsFromEmail(email.body);
-            allTransactions.push(...extracted);
-          }
-          
-          setTransactions(allTransactions);
-          setExtracting(false);
-        }
-      }
+      const txs = await api.scanEmails(scanDateFrom, scanDateTo, isDemo);
+      setTransactions(txs);
     } catch (error) {
       console.error("Workflow error:", error);
     } finally {
@@ -84,8 +57,12 @@ const App: React.FC = () => {
   const handleSync = async (tx: Transaction) => {
     setSyncing(true);
     try {
-      await api.postTransactions([tx], isDemo);
-      setTransactions(prev => prev.map(t => (t.id === tx.id) ? { ...t, status: 'synced' } : t));
+      const result = await api.syncTransactions([tx.id], isDemo);
+      if (result[tx.id]) {
+        setTransactions(prev => prev.map(t => (t.id === tx.id) ? { ...t, status: 'synced' } : t));
+      } else {
+        setTransactions(prev => prev.map(t => (t.id === tx.id) ? { ...t, status: 'failed' } : t));
+      }
     } finally {
       setSyncing(false);
     }
@@ -97,8 +74,12 @@ const App: React.FC = () => {
     
     setSyncing(true);
     try {
-      await api.postTransactions(pending, isDemo);
-      setTransactions(prev => prev.map(t => ({ ...t, status: 'synced' })));
+      const rowKeys = pending.map(t => t.id);
+      const result = await api.syncTransactions(rowKeys, isDemo);
+      setTransactions(prev => prev.map(t => {
+        const success = result[t.id];
+        return success ? { ...t, status: 'synced' } : { ...t, status: 'failed' };
+      }));
     } finally {
       setSyncing(false);
     }
@@ -221,10 +202,10 @@ const App: React.FC = () => {
                   <div className="flex gap-2">
                     <button 
                       onClick={processEmails}
-                      disabled={loading || extracting}
+                      disabled={loading}
                       className="px-6 py-2.5 bg-indigo-600 rounded-xl text-sm font-bold text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
-                      {loading || extracting ? <RefreshCcw size={18} className="animate-spin" /> : <Search size={18} />}
+                      {loading ? <RefreshCcw size={18} className="animate-spin" /> : <Search size={18} />}
                       Scan Inbox
                     </button>
                     <button 
@@ -247,7 +228,7 @@ const App: React.FC = () => {
                   <Sparkles size={24} className="text-purple-500 absolute -top-2 -right-2 animate-bounce" />
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-slate-900">{extracting ? 'Gemini AI Extracting Data...' : 'Retrieving Emails...'}</p>
+                  <p className="text-lg font-bold text-slate-900">Retrieving Transactions...</p>
                   <p className="text-slate-400 text-sm mt-2 font-medium">Communicating with your .NET secure endpoint</p>
                 </div>
               </div>

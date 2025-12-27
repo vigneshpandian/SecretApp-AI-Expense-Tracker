@@ -289,6 +289,82 @@ export const api = {
     }
   },
 
+  scanEmails: async (startDate: string, endDate: string, isDemo: boolean = false): Promise<Transaction[]> => {
+    if (isDemo) {
+      // In demo mode, return demo transactions
+      if (!DEMO_CACHE) DEMO_CACHE = generateDemoData();
+      let base = [...DEMO_CACHE];
+      base = base.filter(t => t.transactionDate >= startDate && t.transactionDate <= endDate);
+      return base.map(t => ({ ...t, status: 'pending' }));
+    }
+
+    try {
+      const res = await fetch(`${BASE_URL}/transaction/ScanEmails?startDate=${startDate}&endDate=${endDate}`, { headers: getHeaders() });
+      if (!res.ok) throw new Error('Failed to scan emails');
+      const data = await res.json();
+      const transactions: Transaction[] = data.map((item: any) => ({
+        id: item.rowKey,
+        transactionDate: item.transactionDate,
+        amount: parseFloat(item.transactionAmount),
+        type: item.transactionType === 'Debit' ? TransactionType.DEBIT : TransactionType.CREDIT,
+        description: item.transactionNotes,
+        category: item.category || '',
+        status: 'pending',
+      }));
+      return transactions;
+    } catch (error) {
+      console.error('Error scanning emails:', error);
+      return [];
+    }
+  },
+
+  updateTransaction: async (rowKey: string, updates: Partial<Transaction>, isDemo: boolean = false): Promise<void> => {
+    if (isDemo) return;
+    try {
+      const body = {
+        RowKey: rowKey,
+        Category: updates.category,
+        TransactionNotes: updates.description,
+        TransactionDate: updates.transactionDate,
+        TransactionAmount: updates.amount?.toString(),
+        TransactionType: updates.type === TransactionType.DEBIT ? 'Debit' : 'Credit'
+      };
+      const res = await fetch(`${BASE_URL}/transaction/ScanEmails`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error('Failed to update transaction');
+    } catch (error) {
+      console.error('Error updating transaction:', error);
+      throw error;
+    }
+  },
+
+  syncTransactions: async (rowKeys: string[], isDemo: boolean = false): Promise<Record<string, boolean>> => {
+    if (isDemo) {
+      // Simulate sync
+      const result: Record<string, boolean> = {};
+      rowKeys.forEach(key => result[key] = true);
+      await new Promise(r => setTimeout(r, 1000));
+      return result;
+    }
+
+    try {
+      const res = await fetch(`${BASE_URL}/transaction/ScanEmails/Sync`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(rowKeys)
+      });
+      if (!res.ok) throw new Error('Failed to sync transactions');
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error('Error syncing transactions:', error);
+      return {};
+    }
+  },
+
   logout: () => {
     sessionStorage.removeItem('auth_token');
     sessionStorage.removeItem('categories');

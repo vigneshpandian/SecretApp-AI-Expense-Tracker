@@ -121,6 +121,8 @@ const TransactionTable: React.FC<Props> = ({ transactions, onSync, onUpdate, isS
                           <button onClick={() => startEdit(tx)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit"><Edit2 size={16}/></button>
                           {tx.status === 'synced' ? (
                             <span className="px-2 py-1 bg-green-50 text-green-600 text-[10px] font-black uppercase rounded border border-green-100">Synced</span>
+                          ) : tx.status === 'failed' ? (
+                            <span className="px-2 py-1 bg-red-50 text-red-600 text-[10px] font-black uppercase rounded border border-red-100">Failed</span>
                           ) : (
                             <button 
                               onClick={() => onSync(tx)}
