@@ -80,11 +80,23 @@ const TransactionTable: React.FC<Props> = ({ transactions, onSync, onUpdate, isS
                           />
                         ) : tx.description}
                       </span>
-                      {tx.cardLast4 && (
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <CreditCard size={10} className="text-slate-400" />
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">ICICI • {tx.cardLast4}</span>
-                        </div>
+                      {isEditing ? (
+                        <select 
+                          value={editForm.type} 
+                          onChange={e => setEditForm({...editForm, type: e.target.value as TransactionType})}
+                          className="bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-xs outline-none mt-1"
+                        >
+                          <option value={TransactionType.CREDIT}>Credit</option>
+                          <option value={TransactionType.DEBIT}>Debit</option>
+                          <option value={TransactionType.INVESTMENT}>Investment</option>
+                        </select>
+                      ) : (
+                        tx.cardLast4 && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <CreditCard size={10} className="text-slate-400" />
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">ICICI • {tx.cardLast4}</span>
+                          </div>
+                        )
                       )}
                     </div>
                   </td>

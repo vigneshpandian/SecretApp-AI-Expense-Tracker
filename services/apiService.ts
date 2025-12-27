@@ -43,14 +43,16 @@ const generateDemoData = (): Transaction[] => {
     const dateStr = date.toISOString().split('T')[0];
     
     for (let j = 0; j < 2; j++) {
-      const isCredit = Math.random() > 0.8;
+      const rand = Math.random();
+      const isCredit = rand > 0.8;
+      const isInvestment = rand > 0.95; // 5% chance of investment
       data.push({
         id: `demo_${i}_${j}`,
         transactionDate: dateStr,
         amount: isCredit ? Math.floor(Math.random() * 50000) + 10000 : Math.floor(Math.random() * 2000) + 50,
-        type: isCredit ? TransactionType.CREDIT : TransactionType.DEBIT,
-        description: isCredit ? "Salary Disbursement" : `Merchant Ref: ${Math.random().toString(36).substring(7)}`,
-        category: isCredit ? "Salary" : categories[Math.floor(Math.random() * (categories.length - 1))],
+        type: isInvestment ? TransactionType.INVESTMENT : isCredit ? TransactionType.CREDIT : TransactionType.DEBIT,
+        description: isInvestment ? "Investment Purchase" : isCredit ? "Salary Disbursement" : `Merchant Ref: ${Math.random().toString(36).substring(7)}`,
+        category: isInvestment ? "Investments" : isCredit ? "Salary" : categories[Math.floor(Math.random() * (categories.length - 1))],
         status: 'synced',
         createdAt: new Date().toISOString()
       });
@@ -336,7 +338,7 @@ export const api = {
         TransactionNotes: updates.description,
         TransactionDate: updates.transactionDate,
         TransactionAmount: updates.amount?.toString(),
-        TransactionType: updates.type === TransactionType.DEBIT ? 'Debit' : 'Credit'
+        TransactionType: updates.type === TransactionType.DEBIT ? 'Debit' : updates.type === TransactionType.INVESTMENT ? 'Investments' : 'Credit'
       };
       const res = await fetch(`${BASE_URL}/transaction/ScanEmails`, {
         method: 'PUT',
