@@ -24,6 +24,33 @@ const App: React.FC = () => {
 
   const isDemo = user?.isDemo || false;
 
+  // Helper to decode JWT payload
+  const decodeJWT = (token: string) => {
+    try {
+      const payload = token.split('.')[1];
+      return JSON.parse(atob(payload));
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    // Check for existing token and restore user
+    const token = sessionStorage.getItem('auth_token');
+    if (token && !user) {
+      const payload = decodeJWT(token);
+      if (payload) {
+        const restoredUser: User = {
+          id: payload.jti,
+          username: payload.sub,
+          name: `${payload.FirstName} ${payload.LastName}`,
+          isDemo: false
+        };
+        setUser(restoredUser);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (user) {
       loadInitialAppData();

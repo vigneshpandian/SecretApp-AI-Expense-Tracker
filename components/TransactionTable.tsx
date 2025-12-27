@@ -95,7 +95,7 @@ const TransactionTable: React.FC<Props> = ({ transactions, onSync, onUpdate, isS
                           list={`categories-${tx.id}`}
                           value={editForm.category} 
                           onChange={e => setEditForm({...editForm, category: e.target.value})}
-                          className="bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-xs outline-none w-full"
+                          className="bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-500 w-full"
                           placeholder="Select or type category"
                         />
                         <datalist id={`categories-${tx.id}`}>

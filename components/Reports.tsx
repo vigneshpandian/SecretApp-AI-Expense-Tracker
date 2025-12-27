@@ -236,7 +236,7 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
                 <tbody className="divide-y divide-slate-100">
                   {filteredData.map((tx, idx) => (
                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 text-sm text-slate-500">{tx.transactionDate}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{tx.transactionDate.split('T')[0]}</td>
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">{tx.description}</td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[10px] font-bold uppercase tracking-tighter">{tx.category}</span>
