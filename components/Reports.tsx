@@ -15,6 +15,7 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
   const defaultDateTo = today.toISOString().split('T')[0];
 
   const [data, setData] = useState<Transaction[]>([]);
+  const [totals, setTotals] = useState({ totalIncome: 0, totalExpense: 0, totalInvestments: 0 });
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   
@@ -37,25 +38,26 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
     setLoading(true);
     const ledgerType = filterType.flatMap(t => t === TransactionType.CREDIT ? ['Income'] : t === TransactionType.DEBIT ? ['Expense'] : ['Investments']);
     const cats = filterCategory;
-    const [txs, catsList] = await Promise.all([
+    const [result, catsList] = await Promise.all([
       api.getTransactions({ dateFrom, dateTo, categories: cats, ledgerType, isDemo: demoMode }),
       api.getCategories(demoMode)
     ]);
-    setData(txs);
+    setData(result.transactions);
+    setTotals(result.totals);
     setCategories(catsList);
     setLoading(false);
   };
 
   const filteredData = data.filter(t => {
-    const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = (t.description?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
                           t.amount.toString().includes(searchTerm);
     return matchesSearch;
   });
 
   const chartData = [
-    { name: 'Credits', value: filteredData.filter(t => t.type === TransactionType.CREDIT).reduce((acc, t) => acc + t.amount, 0) },
-    { name: 'Debits', value: filteredData.filter(t => t.type === TransactionType.DEBIT).reduce((acc, t) => acc + t.amount, 0) },
-    { name: 'Investments', value: filteredData.filter(t => t.type === TransactionType.INVESTMENT).reduce((acc, t) => acc + t.amount, 0) },
+    { name: 'Credits', value: totals.totalIncome },
+    { name: 'Debits', value: totals.totalExpense },
+    { name: 'Investments', value: totals.totalInvestments },
   ];
 
   const categoryChartData = categories.map(cat => ({

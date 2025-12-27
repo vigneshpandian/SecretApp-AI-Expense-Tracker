@@ -164,13 +164,16 @@ export const api = {
     }
   },
 
-  getTransactions: async (filters: { dateFrom?: string; dateTo?: string; categories?: string[]; ledgerType?: string[]; isDemo?: boolean }): Promise<Transaction[]> => {
+  getTransactions: async (filters: { dateFrom?: string; dateTo?: string; categories?: string[]; ledgerType?: string[]; isDemo?: boolean }): Promise<{ transactions: Transaction[]; totals: { totalIncome: number; totalExpense: number; totalInvestments: number } }> => {
     if (filters.isDemo) {
       if (!DEMO_CACHE) DEMO_CACHE = generateDemoData();
       let base = [...DEMO_CACHE];
       if (filters.dateFrom) base = base.filter(t => t.transactionDate >= filters.dateFrom!);
       if (filters.dateTo) base = base.filter(t => t.transactionDate <= filters.dateTo!);
-      return base;
+      const totalIncome = base.filter(t => t.type === TransactionType.CREDIT).reduce((sum, t) => sum + t.amount, 0);
+      const totalExpense = base.filter(t => t.type === TransactionType.DEBIT).reduce((sum, t) => sum + t.amount, 0);
+      const totalInvestments = base.filter(t => t.type === TransactionType.INVESTMENT).reduce((sum, t) => sum + t.amount, 0);
+      return { transactions: base, totals: { totalIncome, totalExpense, totalInvestments } };
     }
 
     try {
@@ -200,16 +203,22 @@ export const api = {
         transactionDate: item.transactionDate,
         amount: parseFloat(item.transactionAmount),
         type: item.ledgerType === 'Expense' ? TransactionType.DEBIT : item.ledgerType === 'Income' ? TransactionType.CREDIT : item.ledgerType === 'Investments' ? TransactionType.INVESTMENT : TransactionType.DEBIT,
-        description: item.transactionNotes,
-        category: item.categoryName,
+        description: item.transactionNotes || '',
+        category: item.categoryName || '',
         status: 'synced',
         createdAt: item.createdDate
       }));
 
-      return transactions;
+      const totals = {
+        totalIncome: data.totalIncome || 0,
+        totalExpense: data.totalExpense || 0,
+        totalInvestments: data.totalInvestments || 0
+      };
+
+      return { transactions, totals };
     } catch (error) {
       console.error('Error fetching transactions:', error);
-      return [];
+      return { transactions: [], totals: { totalIncome: 0, totalExpense: 0, totalInvestments: 0 } };
     }
   },
 
