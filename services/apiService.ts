@@ -299,7 +299,7 @@ export const api = {
     }
 
     try {
-      const res = await fetch(`${BASE_URL}/transaction/ScanEmails?startDate=${startDate}&endDate=${endDate}`, { headers: getHeaders() });
+      const res = await fetch(`${BASE_URL}/transaction/ScanEmails?startDate=${startDate}&endDate=${endDate}T23:59:59`, { headers: getHeaders() });
       if (!res.ok) throw new Error('Failed to scan emails');
       const data = await res.json();
       const transactions: Transaction[] = data.map((item: any) => ({
@@ -309,7 +309,7 @@ export const api = {
         type: item.transactionType === 'Debit' ? TransactionType.DEBIT : TransactionType.CREDIT,
         description: item.transactionNotes,
         category: item.category || '',
-        status: 'pending',
+        status: item.status === 'Synced' ? 'synced' : 'pending',
       }));
       return transactions;
     } catch (error) {

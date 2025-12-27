@@ -90,13 +90,18 @@ const TransactionTable: React.FC<Props> = ({ transactions, onSync, onUpdate, isS
                   </td>
                   <td className="px-6 py-4">
                     {isEditing ? (
-                      <select 
-                        value={editForm.category} 
-                        onChange={e => setEditForm({...editForm, category: e.target.value})}
-                        className="bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-xs outline-none"
-                      >
-                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                      <>
+                        <input 
+                          list={`categories-${tx.id}`}
+                          value={editForm.category} 
+                          onChange={e => setEditForm({...editForm, category: e.target.value})}
+                          className="bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-xs outline-none w-full"
+                          placeholder="Select or type category"
+                        />
+                        <datalist id={`categories-${tx.id}`}>
+                          {categories.map(c => <option key={c} value={c} />)}
+                        </datalist>
+                      </>
                     ) : (
                       <span className="px-2 py-0.5 bg-indigo-50 rounded text-[10px] font-black text-indigo-600 uppercase tracking-tighter border border-indigo-100">{tx.category}</span>
                     )}
@@ -118,7 +123,7 @@ const TransactionTable: React.FC<Props> = ({ transactions, onSync, onUpdate, isS
                         </>
                       ) : (
                         <>
-                          <button onClick={() => startEdit(tx)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit"><Edit2 size={16}/></button>
+                          <button onClick={() => startEdit(tx)} disabled={tx.status === 'synced'} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" title={tx.status === 'synced' ? 'Cannot edit synced transactions' : 'Edit'}><Edit2 size={16}/></button>
                           {tx.status === 'synced' ? (
                             <span className="px-2 py-1 bg-green-50 text-green-600 text-[10px] font-black uppercase rounded border border-green-100">Synced</span>
                           ) : tx.status === 'failed' ? (
