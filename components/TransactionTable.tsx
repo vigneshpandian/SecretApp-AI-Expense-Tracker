@@ -14,21 +14,32 @@ interface Props {
 const TransactionTable: React.FC<Props> = ({ transactions, onSync, onUpdate, isSyncing, categories = [] }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Transaction>>({});
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState<string | null>(null);
+  const [categorySearch, setCategorySearch] = useState('');
+
+  // Fallback categories if none provided
+  const availableCategories = categories.length > 0 ? categories : ['Shopping', 'Food & Dining', 'Salary', 'Groceries', 'Utilities', 'Travel', 'Entertainment', 'Healthcare', 'Transportation', 'Bills', 'Other'];
 
   const startEdit = (tx: Transaction) => {
     setEditingId(tx.id);
     setEditForm({ ...tx });
+    setCategorySearch('');
+    setCategoryDropdownOpen(null);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditForm({});
+    setCategoryDropdownOpen(null);
+    setCategorySearch('');
   };
 
   const saveEdit = () => {
     if (editingId && onUpdate) {
       onUpdate(editingId, editForm);
       setEditingId(null);
+      setCategoryDropdownOpen(null);
+      setCategorySearch('');
     }
   };
 
@@ -102,18 +113,44 @@ const TransactionTable: React.FC<Props> = ({ transactions, onSync, onUpdate, isS
                   </td>
                   <td className="px-6 py-4">
                     {isEditing ? (
-                      <>
+                      <div className="relative">
                         <input 
-                          list={`categories-${tx.id}`}
+                          type="text"
                           value={editForm.category} 
-                          onChange={e => setEditForm({...editForm, category: e.target.value})}
+                          onChange={e => {
+                            setEditForm({...editForm, category: e.target.value});
+                            setCategorySearch(e.target.value);
+                            setCategoryDropdownOpen(tx.id);
+                          }}
+                          onFocus={() => setCategoryDropdownOpen(tx.id)}
+                          onClick={() => setCategoryDropdownOpen(tx.id)}
+                          onBlur={() => setTimeout(() => setCategoryDropdownOpen(null), 200)}
                           className="bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-500 w-full"
                           placeholder="Select or type category"
                         />
-                        <datalist id={`categories-${tx.id}`}>
-                          {categories.map(c => <option key={c} value={c} />)}
-                        </datalist>
-                      </>
+                        {categoryDropdownOpen === tx.id && (
+                          <div className="absolute top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-20 w-full max-h-48 overflow-y-auto">
+                            <div className="p-2 space-y-1">
+                              {availableCategories.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).map(c => (
+                                <div 
+                                  key={c} 
+                                  className="text-xs cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded"
+                                  onMouseDown={() => {
+                                    setEditForm({...editForm, category: c});
+                                    setCategoryDropdownOpen(null);
+                                    setCategorySearch('');
+                                  }}
+                                >
+                                  {c}
+                                </div>
+                              ))}
+                              {availableCategories.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && categorySearch && (
+                                <div className="text-xs text-slate-400 px-1 py-0.5">No categories found</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <span className="px-2 py-0.5 bg-indigo-50 rounded text-[10px] font-black text-indigo-600 uppercase tracking-tighter border border-indigo-100">{tx.category}</span>
                     )}

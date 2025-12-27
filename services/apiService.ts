@@ -81,6 +81,7 @@ export const api = {
       const token = data.access_token;
       
       sessionStorage.setItem('auth_token', token);
+      sessionStorage.removeItem('categories'); // Clear cached categories on login to fetch fresh
       
       // Decode token to extract user info
       const payload = decodeJWT(token);
@@ -145,7 +146,9 @@ export const api = {
 
   getCategories: async (isDemo: boolean = false): Promise<string[]> => {
     if (isDemo) {
-      return PROD_DB.categories;
+      const cats = PROD_DB.categories;
+      sessionStorage.setItem('categories', JSON.stringify(cats));
+      return cats;
     }
     
     const cached = sessionStorage.getItem('categories');
