@@ -5,6 +5,7 @@ import TransactionTable from './components/TransactionTable';
 import SenderManager from './components/SenderManager';
 import Login from './components/Login';
 import Reports from './components/Reports';
+import ManualTransactions from './components/ManualTransactions';
 import { api } from './services/apiService';
 import { Transaction, User, ViewType, Sender } from './types';
 import { Activity, BarChart3, LogOut, Search, Scan, Database, Info, Calendar, RefreshCcw, Sparkles } from 'lucide-react';
@@ -160,6 +161,14 @@ const App: React.FC = () => {
                 <Scan size={18} /> Transaction Scanner
               </button>
               <button 
+                onClick={() => setActiveView('manual')}
+                className={`flex items-center gap-2 py-4 px-6 text-sm font-bold border-b-2 transition-all ${
+                  activeView === 'manual' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <Database size={18} /> Manual Transactions
+              </button>
+              <button 
                 onClick={() => setActiveView('reports')}
                 className={`flex items-center gap-2 py-4 px-6 text-sm font-bold border-b-2 transition-all ${
                   activeView === 'reports' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -269,9 +278,11 @@ const App: React.FC = () => {
               />
             )}
           </div>
-        ) : (
+        ) : activeView === 'reports' ? (
           <Reports demoMode={isDemo} />
-        )}
+        ) : activeView === 'manual' ? (
+          <ManualTransactions user={user} isDemo={isDemo} />
+        ) : null}
       </main>
 
       <footer className="bg-white border-t border-slate-200 py-8 mt-12">
@@ -280,7 +291,7 @@ const App: React.FC = () => {
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span>System Status: Operational • v2.1-Ready</span>
           </div>
-          <div>© 2024 SecretApp Ai • Enterprise Edition</div>
+          <div>© 2026 SecretApp Ai • Enterprise Edition</div>
           <div className="flex gap-6">
             <span className="text-indigo-600">User Context: {user.name}</span>
           </div>

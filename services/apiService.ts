@@ -71,6 +71,16 @@ const decodeJWT = (token: string) => {
   }
 };
 
+// Helper to get current user email
+const getCurrentUserEmail = () => {
+  const token = sessionStorage.getItem('auth_token');
+  if (token) {
+    const payload = decodeJWT(token);
+    return payload?.sub || null;
+  }
+  return null;
+};
+
 export const api = {
   login: async (username: string, password: string): Promise<User | null> => {
     try {
@@ -376,6 +386,91 @@ export const api = {
     } catch (error) {
       console.error('Error syncing transactions:', error);
       return {};
+    }
+  },
+
+  createTransaction: async (transaction: Omit<Transaction, 'id' | 'status' | 'createdAt'>, isDemo: boolean = false): Promise<void> => {
+    if (isDemo) return;
+    const email = getCurrentUserEmail();
+    if (!email) throw new Error('User not authenticated');
+
+    const ledgerTypeMap = {
+      [TransactionType.CREDIT]: 'Income',
+      [TransactionType.DEBIT]: 'Expense',
+      [TransactionType.INVESTMENT]: 'Investments'
+    };
+
+    const body = {
+      categoryName: transaction.category,
+      email,
+      ledgerType: ledgerTypeMap[transaction.type],
+      transactionAmount: transaction.amount.toString(),
+      transactionDate: transaction.transactionDate,
+      goldWeight: "",
+      isCreditCardTransaction: false,
+      transactionNotes: transaction.description
+    };
+
+    try {
+      const res = await fetch(`${BASE_URL}/transaction/SecretUserTransaction`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error('Failed to create transaction');
+    } catch (error) {
+      console.error('Error creating transaction:', error);
+      throw error;
+    }
+  },
+
+  updateManualTransaction: async (ledgerId: string, transaction: Omit<Transaction, 'id' | 'status' | 'createdAt'>, isDemo: boolean = false): Promise<void> => {
+    if (isDemo) return;
+    const email = getCurrentUserEmail();
+    if (!email) throw new Error('User not authenticated');
+
+    const ledgerTypeMap = {
+      [TransactionType.CREDIT]: 'Income',
+      [TransactionType.DEBIT]: 'Expense',
+      [TransactionType.INVESTMENT]: 'Investments'
+    };
+
+    const body = {
+      LedgerId: ledgerId,
+      categoryName: transaction.category,
+      email,
+      ledgerType: ledgerTypeMap[transaction.type],
+      transactionAmount: transaction.amount.toString(),
+      transactionDate: transaction.transactionDate,
+      goldWeight: "",
+      isCreditCardTransaction: false,
+      transactionNotes: transaction.description
+    };
+
+    try {
+      const res = await fetch(`${BASE_URL}/transaction/SecretUserTransaction`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error('Failed to update transaction');
+    } catch (error) {
+      console.error('Error updating transaction:', error);
+      throw error;
+    }
+  },
+
+  deleteTransaction: async (ledgerId: string, isDemo: boolean = false): Promise<void> => {
+    if (isDemo) return;
+    try {
+      const res = await fetch(`${BASE_URL}/transaction/SecretUserTransaction/${ledgerId}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (!res.ok) throw new Error('Failed to delete transaction');
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      throw error;
     }
   },
 

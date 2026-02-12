@@ -38,4 +38,4 @@ export interface User {
   token?: string;
 }
 
-export type ViewType = 'scanner' | 'reports';
+export type ViewType = 'scanner' | 'transactions' | 'reports' | 'senders' | 'manual';
