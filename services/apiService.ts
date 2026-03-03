@@ -214,7 +214,7 @@ export const api = {
 
       const data = await res.json();
       const transactions: Transaction[] = data.secretUserTransactions.map((item: any) => ({
-        id: item.ledgerId,
+        id: item.rowKey,
         transactionDate: item.transactionDate,
         amount: parseFloat(item.transactionAmount),
         type: item.ledgerType === 'Expense' ? TransactionType.DEBIT : item.ledgerType === 'Income' ? TransactionType.CREDIT : item.ledgerType === 'Investments' ? TransactionType.INVESTMENT : TransactionType.DEBIT,
@@ -350,7 +350,7 @@ export const api = {
         Category: updates.category,
         TransactionNotes: updates.description,
         TransactionDate: updates.transactionDate,
-        TransactionAmount: updates.amount?.toString(),
+        TransactionAmount: updates.amount,
         TransactionType: updates.type === TransactionType.DEBIT ? 'Debit' : updates.type === TransactionType.INVESTMENT ? 'Investments' : 'Credit'
       };
       const res = await fetch(`${BASE_URL}/transaction/ScanEmails`, {

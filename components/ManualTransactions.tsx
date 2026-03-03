@@ -31,6 +31,10 @@ const ManualTransactions: React.FC<ManualTransactionsProps> = ({ user, isDemo })
 
   const loadCategories = async () => {
     const cats = await api.getCategories(isDemo);
+    // if formData already has a category (e.g. when editing) make sure it's included
+    if (formData.category && !cats.includes(formData.category)) {
+      cats.unshift(formData.category);
+    }
     setCategories(cats);
     if (cats.length > 0 && !formData.category) {
       setFormData(prev => ({ ...prev, category: cats[0] }));
@@ -82,8 +86,14 @@ const ManualTransactions: React.FC<ManualTransactionsProps> = ({ user, isDemo })
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
+    // make sure the selected category is available in the dropdown
+    if (transaction.category && !categories.includes(transaction.category)) {
+      setCategories(prev => [transaction.category, ...prev]);
+    }
+    // date inputs expect YYYY-MM-DD only, strip any time portion we may have received
+    const dateOnly = transaction.transactionDate ? transaction.transactionDate.split('T')[0] : '';
     setFormData({
-      transactionDate: transaction.transactionDate,
+      transactionDate: dateOnly,
       category: transaction.category,
       type: transaction.type,
       description: transaction.description,
@@ -239,7 +249,7 @@ const ManualTransactions: React.FC<ManualTransactionsProps> = ({ user, isDemo })
             <tbody className="divide-y divide-slate-200">
               {filteredTransactions.map(tx => (
                 <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-semibold text-slate-900">{tx.transactionDate}</td>
+                  <td className="px-6 py-4 text-sm font-semibold text-slate-900">{tx.transactionDate.split('T')[0]}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{tx.category}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{tx.type}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{tx.description}</td>
