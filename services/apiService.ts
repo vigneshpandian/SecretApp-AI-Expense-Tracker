@@ -263,7 +263,7 @@ export const api = {
       const mockTransactions: Transaction[] = [
         {
           id: `extracted_demo_${Date.now()}_1`,
-          transactionDate: new Date().toISOString().split('T')[0],
+          transactionDate: new Date().toISOString().replace('T', ' ').split('.')[0],
           amount: 2500,
           type: TransactionType.DEBIT,
           description: "AMAZON INDIA",
