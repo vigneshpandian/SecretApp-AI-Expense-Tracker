@@ -5,13 +5,17 @@ import { Edit2, Check, X, CreditCard } from 'lucide-react';
 
 interface Props {
   transactions: Transaction[];
+  selectedIds: string[];
+  onToggleSelect: (id: string) => void;
+  onToggleSelectAll: (checked: boolean) => void;
   onSync: (tx: Transaction) => void;
   onUpdate?: (id: string, updates: Partial<Transaction>) => void;
   isSyncing: boolean;
   categories?: string[];
 }
 
-const TransactionTable: React.FC<Props> = ({ transactions, onSync, onUpdate, isSyncing, categories = [] }) => {
+const TransactionTable: React.FC<Props> = ({ transactions, selectedIds, onToggleSelect, onToggleSelectAll, onSync, onUpdate, isSyncing, categories = [] }) => {
+  const allSelected = transactions.length > 0 && transactions.every(tx => selectedIds.includes(tx.id));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Transaction>>({});
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState<string | null>(null);
@@ -57,6 +61,14 @@ const TransactionTable: React.FC<Props> = ({ transactions, onSync, onUpdate, isS
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(e) => onToggleSelectAll(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+              </th>
               <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
               <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Details</th>
               <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</th>
@@ -69,6 +81,14 @@ const TransactionTable: React.FC<Props> = ({ transactions, onSync, onUpdate, isS
               const isEditing = editingId === tx.id;
               return (
                 <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-4 text-sm text-slate-500 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(tx.id)}
+                      onChange={() => onToggleSelect(tx.id)}
+                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                  </td>
                   <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
                     {isEditing ? (
                       <input 

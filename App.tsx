@@ -6,9 +6,11 @@ import SenderManager from './components/SenderManager';
 import Login from './components/Login';
 import Reports from './components/Reports';
 import ManualTransactions from './components/ManualTransactions';
+import Portfolio from './components/Portfolio';
+import PortfolioData from './components/PortfolioData';
 import { api } from './services/apiService';
 import { Transaction, User, ViewType, Sender } from './types';
-import { Activity, BarChart3, LogOut, Search, Scan, Database, Info, Calendar, RefreshCcw, Sparkles } from 'lucide-react';
+import { Activity, BarChart3, LogOut, Search, Scan, Database, Info, Calendar, RefreshCcw, Sparkles, TrendingUp } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -16,6 +18,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<string[]>([]);
   const [senders, setSenders] = useState<Sender[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
 
@@ -72,6 +75,7 @@ const App: React.FC = () => {
     
     setLoading(true);
     setTransactions([]);
+    setSelectedTransactionIds([]);
     try {
       const txs = await api.scanEmails(scanDateFrom, scanDateTo, isDemo);
       setTransactions(txs);
@@ -81,6 +85,16 @@ const App: React.FC = () => {
       setLoading(false);
     }
   }, [senders, scanDateFrom, scanDateTo, isDemo]);
+
+  const handleToggleTransactionSelection = (id: string) => {
+    setSelectedTransactionIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = (checked: boolean) => {
+    setSelectedTransactionIds(checked ? transactions.map(t => t.id) : []);
+  };
 
   const handleSync = async (tx: Transaction) => {
     setSyncing(true);
@@ -97,17 +111,21 @@ const App: React.FC = () => {
   };
 
   const handleBulkSync = async () => {
-    const pending = transactions.filter(t => t.status !== 'synced');
-    if (pending.length === 0) return;
+    const rowKeys = selectedTransactionIds.length > 0
+      ? selectedTransactionIds
+      : transactions.filter(t => t.status !== 'synced').map(t => t.id);
+
+    if (rowKeys.length === 0) return;
     
     setSyncing(true);
     try {
-      const rowKeys = pending.map(t => t.id);
       const result = await api.syncTransactions(rowKeys, isDemo);
       setTransactions(prev => prev.map(t => {
+        if (!rowKeys.includes(t.id)) return t;
         const success = result[t.id];
         return success ? { ...t, status: 'synced' } : { ...t, status: 'failed' };
       }));
+      setSelectedTransactionIds(prevSelected => prevSelected.filter(id => !rowKeys.includes(id)));
     } finally {
       setSyncing(false);
     }
@@ -168,6 +186,15 @@ const App: React.FC = () => {
               >
                 <Database size={18} /> Manual Transactions
               </button>
+            
+              <button 
+                onClick={() => setActiveView('portfolio')}
+                className={`flex items-center gap-2 py-4 px-6 text-sm font-bold border-b-2 transition-all ${
+                  activeView === 'portfolio' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <TrendingUp size={18} /> Portfolio
+              </button>
               <button 
                 onClick={() => setActiveView('reports')}
                 className={`flex items-center gap-2 py-4 px-6 text-sm font-bold border-b-2 transition-all ${
@@ -184,6 +211,30 @@ const App: React.FC = () => {
               <LogOut size={16} /> Logout
             </button>
           </div>
+          {(activeView === 'portfolio' || activeView === 'portfolioData') && (
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveView('portfolio')}
+                  className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+                    activeView === 'portfolio' ? 'bg-white text-slate-900 border-slate-300 shadow-sm' : 'text-slate-500 border-transparent hover:border-slate-200 hover:text-slate-900'
+                  }`}
+                >
+                  Portfolio Overview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveView('portfolioData')}
+                  className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+                    activeView === 'portfolioData' ? 'bg-white text-slate-900 border-slate-300 shadow-sm' : 'text-slate-500 border-transparent hover:border-slate-200 hover:text-slate-900'
+                  }`}
+                >
+                  Portfolio Data
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -235,7 +286,7 @@ const App: React.FC = () => {
                       className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 outline-none transition-all"
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button 
                       onClick={processEmails}
                       disabled={loading}
@@ -246,11 +297,11 @@ const App: React.FC = () => {
                     </button>
                     <button 
                       onClick={handleBulkSync}
-                      disabled={syncing || transactions.length === 0 || transactions.every(t => t.status === 'synced')}
+                      disabled={syncing || transactions.length === 0 || (selectedTransactionIds.length === 0 && transactions.every(t => t.status === 'synced'))}
                       className="px-6 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                       <Database size={18} />
-                      Sync All
+                      {selectedTransactionIds.length > 0 ? `Sync Selected (${selectedTransactionIds.length})` : 'Sync All'}
                     </button>
                   </div>
                 </div>
@@ -271,6 +322,9 @@ const App: React.FC = () => {
             ) : (
               <TransactionTable 
                 transactions={transactions} 
+                selectedIds={selectedTransactionIds}
+                onToggleSelect={handleToggleTransactionSelection}
+                onToggleSelectAll={handleToggleSelectAll}
                 onSync={handleSync} 
                 onUpdate={handleUpdateTransaction}
                 isSyncing={syncing}
@@ -278,6 +332,10 @@ const App: React.FC = () => {
               />
             )}
           </div>
+        ) : activeView === 'portfolioData' ? (
+          <PortfolioData />
+        ) : activeView === 'portfolio' ? (
+          <Portfolio demoMode={isDemo} />
         ) : activeView === 'reports' ? (
           <Reports demoMode={isDemo} />
         ) : activeView === 'manual' ? (

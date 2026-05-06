@@ -1,4 +1,3 @@
-
 import { Transaction, TransactionType, User, Sender } from "../types";
 
 /**
@@ -473,7 +472,79 @@ export const api = {
       throw error;
     }
   },
+  getPortfolioData: async (isDemo: boolean = false): Promise<any[]> => {
+    if (isDemo) return []; // Demo mode returns empty for now
+    
+    try {
+      console.log('Making API call to portfolio endpoint');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const res = await fetch(`${BASE_URL}/portfolio/portfolioData/all`, { 
+        headers: getHeaders(),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      console.log('API response status:', res.status);
+      if (!res.ok) throw new Error(`Failed to fetch portfolio data: ${res.status} ${res.statusText}`);
+      const data = await res.json();
+      console.log('API data received:', data);
+      return data;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('API call timed out after 10 seconds');
+      } else {
+        console.error('Error fetching portfolio data:', error);
+      }
+      return [];
+    }
+  },
 
+  createPortfolioData: async (payload: any, isDemo: boolean = false): Promise<any> => {
+    if (isDemo) return payload;
+    const res = await fetch(`${BASE_URL}/portfolio/portfolioData`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if ( res.status !== 201) throw new Error('Failed to create portfolio data');
+
+    
+   
+    
+  },
+
+  updatePortfolioData: async (rowKey: string, payload: any, isDemo: boolean = false): Promise<any> => {
+    if (isDemo) return payload;
+    const res = await fetch(`${BASE_URL}/portfolio/portfolioData`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Failed to update portfolio data');
+
+    const contentType = res.headers.get('content-type') || '';
+    
+    if (res.status === 204) {
+      return payload;
+    }
+    return payload;
+  },
+
+  deletePortfolioData: async (rowKey: string, isDemo: boolean = false): Promise<void> => {
+    if (isDemo) return;
+    try {
+      const res = await fetch(`${BASE_URL}/portfolio/portfolioData/${encodeURIComponent(rowKey)}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (!res.ok) throw new Error('Failed to delete portfolio data');
+    } catch (error) {
+      console.error('Error deleting portfolio data:', error);
+      throw error;
+    }
+  },
   logout: () => {
     sessionStorage.removeItem('auth_token');
     sessionStorage.removeItem('categories');
