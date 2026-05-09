@@ -38,7 +38,7 @@ export interface User {
   token?: string;
 }
 
-export type ViewType = 'scanner' | 'transactions' | 'reports' | 'senders' | 'manual' | 'portfolio' | 'portfolioData' | 'investmentsReport';
+export type ViewType = 'scanner' | 'transactions' | 'reports' | 'senders' | 'manual' | 'portfolio' | 'portfolioData';
 
 export interface MutualFundHolding {
   folio: string;

@@ -3,7 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/apiService';
 import { Transaction, TransactionType } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import { Calendar, Download, Search, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
+import InvestmentsReport from './InvestmentsReport';
+import ExpenseBudgetReport from './ExpenseBudgetReport';
 
 interface Props {
   demoMode: boolean;
@@ -18,6 +20,7 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
   const [totals, setTotals] = useState({ totalIncome: 0, totalExpense: 0, totalInvestments: 0 });
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
+  const [reportView, setReportView] = useState<'overview' | 'investments' | 'expenseBudget'>('overview');
   
   // Filters
   const [dateFrom, setDateFrom] = useState(defaultDateFrom);
@@ -69,202 +72,233 @@ const Reports: React.FC<Props> = ({ demoMode }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Filters Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-400 uppercase">From Date</label>
-          <input 
-            type="date" 
-            value={dateFrom} 
-            onChange={e => setDateFrom(e.target.value)}
-            className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-400 uppercase">To Date</label>
-          <input 
-            type="date" 
-            value={dateTo} 
-            onChange={e => setDateTo(e.target.value)}
-            className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-400 uppercase">Types</label>
-          <div className="relative">
-            <div 
-              className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 cursor-pointer outline-none focus:ring-1 focus:ring-indigo-500"
-              onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
-            >
-              {filterType.length === 0 ? 'All Types' : filterType.join(', ')}
-            </div>
-            {isTypeDropdownOpen && (
-              <div className="absolute top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-10 w-full max-h-48 overflow-y-auto">
-                <input 
-                  type="text" 
-                  placeholder="Search types..." 
-                  value={typeSearch} 
-                  onChange={e => setTypeSearch(e.target.value)} 
-                  className="w-full px-2 py-1 text-xs border-b border-slate-200 outline-none"
-                />
-                <div className="p-2 space-y-1">
-                  {[TransactionType.CREDIT, TransactionType.DEBIT, TransactionType.INVESTMENT].filter(t => t.toLowerCase().includes(typeSearch.toLowerCase())).map(t => (
-                    <label key={t} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
-                      <input 
-                        type="checkbox" 
-                        checked={filterType.includes(t)} 
-                        onChange={() => {
-                          if (filterType.includes(t)) {
-                            setFilterType(filterType.filter(type => type !== t));
-                          } else {
-                            setFilterType([...filterType, t]);
-                          }
-                        }}
-                        className="w-3 h-3"
-                      />
-                      {t}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-400 uppercase">Categories</label>
-          <div className="relative">
-            <div 
-              className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 cursor-pointer outline-none focus:ring-1 focus:ring-indigo-500"
-              onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-            >
-              {filterCategory.length === 0 ? 'All Categories' : filterCategory.join(', ')}
-            </div>
-            {isCategoryDropdownOpen && (
-              <div className="absolute top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-10 w-full max-h-48 overflow-y-auto">
-                <input 
-                  type="text" 
-                  placeholder="Search categories..." 
-                  value={categorySearch} 
-                  onChange={e => setCategorySearch(e.target.value)} 
-                  className="w-full px-2 py-1 text-xs border-b border-slate-200 outline-none"
-                />
-                <div className="p-2 space-y-1">
-                  {categories.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).map(c => (
-                    <label key={c} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
-                      <input 
-                        type="checkbox" 
-                        checked={filterCategory.includes(c)} 
-                        onChange={() => {
-                          if (filterCategory.includes(c)) {
-                            setFilterCategory(filterCategory.filter(cat => cat !== c));
-                          } else {
-                            setFilterCategory([...filterCategory, c]);
-                          }
-                        }}
-                        className="w-3 h-3"
-                      />
-                      {c}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-slate-400 uppercase">Search</label>
-          <div className="relative">
-            <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full text-xs bg-white text-slate-900 border border-slate-200 rounded pl-7 pr-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setReportView('overview')}
+            className={`px-4 py-2 text-sm font-semibold rounded-2xl transition ${reportView === 'overview' ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setReportView('investments')}
+            className={`px-4 py-2 text-sm font-semibold rounded-2xl transition ${reportView === 'investments' ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+          >
+            Investment Report
+          </button>
+          <button
+            onClick={() => setReportView('expenseBudget')}
+            className={`px-4 py-2 text-sm font-semibold rounded-2xl transition ${reportView === 'expenseBudget' ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+          >
+            Expense Budget Report
+          </button>
         </div>
       </div>
 
-      {loading ? (
-        <div className="h-64 flex items-center justify-center">
-          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      ) : (
+      {reportView === 'overview' ? (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">Cash Flow</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                      {chartData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+          {/* Filters Bar */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">From Date</label>
+              <input 
+                type="date" 
+                value={dateFrom} 
+                onChange={e => setDateFrom(e.target.value)}
+                className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">To Date</label>
+              <input 
+                type="date" 
+                value={dateTo} 
+                onChange={e => setDateTo(e.target.value)}
+                className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Types</label>
+              <div className="relative">
+                <div 
+                  className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 cursor-pointer outline-none focus:ring-1 focus:ring-indigo-500"
+                  onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+                >
+                  {filterType.length === 0 ? 'All Types' : filterType.join(', ')}
+                </div>
+                {isTypeDropdownOpen && (
+                  <div className="absolute top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-10 w-full max-h-48 overflow-y-auto">
+                    <input 
+                      type="text" 
+                      placeholder="Search types..." 
+                      value={typeSearch} 
+                      onChange={e => setTypeSearch(e.target.value)} 
+                      className="w-full px-2 py-1 text-xs border-b border-slate-200 outline-none"
+                    />
+                    <div className="p-2 space-y-1">
+                      {[TransactionType.CREDIT, TransactionType.DEBIT, TransactionType.INVESTMENT].filter(t => t.toLowerCase().includes(typeSearch.toLowerCase())).map(t => (
+                        <label key={t} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+                          <input 
+                            type="checkbox" 
+                            checked={filterType.includes(t)} 
+                            onChange={() => {
+                              if (filterType.includes(t)) {
+                                setFilterType(filterType.filter(type => type !== t));
+                              } else {
+                                setFilterType([...filterType, t]);
+                              }
+                            }}
+                            className="w-3 h-3"
+                          />
+                          {t}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">Category Spend</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={categoryChartData}>
-                    <XAxis dataKey="name" fontSize={10} />
-                    <YAxis fontSize={10} />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Categories</label>
+              <div className="relative">
+                <div 
+                  className="text-xs bg-white text-slate-900 border border-slate-200 rounded px-2 py-1.5 cursor-pointer outline-none focus:ring-1 focus:ring-indigo-500"
+                  onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                >
+                  {filterCategory.length === 0 ? 'All Categories' : filterCategory.join(', ')}
+                </div>
+                {isCategoryDropdownOpen && (
+                  <div className="absolute top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-10 w-full max-h-48 overflow-y-auto">
+                    <input 
+                      type="text" 
+                      placeholder="Search categories..." 
+                      value={categorySearch} 
+                      onChange={e => setCategorySearch(e.target.value)} 
+                      className="w-full px-2 py-1 text-xs border-b border-slate-200 outline-none"
+                    />
+                    <div className="p-2 space-y-1">
+                      {categories.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).map(c => (
+                        <label key={c} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+                          <input 
+                            type="checkbox" 
+                            checked={filterCategory.includes(c)} 
+                            onChange={() => {
+                              if (filterCategory.includes(c)) {
+                                setFilterCategory(filterCategory.filter(cat => cat !== c));
+                              } else {
+                                setFilterCategory([...filterCategory, c]);
+                              }
+                            }}
+                            className="w-3 h-3"
+                          />
+                          {c}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Search</label>
+              <div className="relative">
+                <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full text-xs bg-white text-slate-900 border border-slate-200 rounded pl-7 pr-2 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
+                />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Date</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Description</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Category</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Type</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredData.map((tx, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 text-sm text-slate-500">{tx.transactionDate.split('T')[0]}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-800">{tx.description}</td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[10px] font-bold uppercase tracking-tighter">{tx.category}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                          tx.type === TransactionType.CREDIT ? 'bg-green-100 text-green-700' : tx.type === TransactionType.DEBIT ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                        }`}>
-                          {tx.type}
-                        </span>
-                      </td>
-                      <td className={`px-6 py-4 text-sm font-bold text-right ${tx.type === TransactionType.CREDIT ? 'text-green-600' : tx.type === TransactionType.DEBIT ? 'text-slate-900' : 'text-green-600'}`}>
-                        ₹{tx.amount.toLocaleString('en-IN')}
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredData.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-20 text-center text-slate-400 italic">No records found for the selected filters.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+          {loading ? (
+            <div className="h-64 flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">Cash Flow</h3>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                          {chartData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">Category Spend</h3>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={categoryChartData}>
+                        <XAxis dataKey="name" fontSize={10} />
+                        <YAxis fontSize={10} />
+                        <Tooltip />
+                        <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Date</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Description</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Category</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Type</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredData.map((tx, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4 text-sm text-slate-500">{tx.transactionDate.split('T')[0]}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-slate-800">{tx.description}</td>
+                          <td className="px-6 py-4">
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[10px] font-bold uppercase tracking-tighter">{tx.category}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              tx.type === TransactionType.CREDIT ? 'bg-green-100 text-green-700' : tx.type === TransactionType.DEBIT ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                            }`}>
+                              {tx.type}
+                            </span>
+                          </td>
+                          <td className={`px-6 py-4 text-sm font-bold text-right ${tx.type === TransactionType.CREDIT ? 'text-green-600' : tx.type === TransactionType.DEBIT ? 'text-slate-900' : 'text-green-600'}`}>
+                            ₹{tx.amount.toLocaleString('en-IN')}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredData.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-20 text-center text-slate-400 italic">No records found for the selected filters.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </>
+      ) : reportView === 'investments' ? (
+        <InvestmentsReport demoMode={demoMode} />
+      ) : (
+        <ExpenseBudgetReport demoMode={demoMode} />
       )}
     </div>
   );

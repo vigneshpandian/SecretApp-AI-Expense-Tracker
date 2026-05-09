@@ -8,10 +8,9 @@ import Reports from './components/Reports';
 import ManualTransactions from './components/ManualTransactions';
 import Portfolio from './components/Portfolio';
 import PortfolioData from './components/PortfolioData';
-import InvestmentsReport from './components/InvestmentsReport';
 import { api } from './services/apiService';
 import { Transaction, User, ViewType, Sender } from './types';
-import { Activity, BarChart3, LogOut, Search, Scan, Database, Info, Calendar, RefreshCcw, Sparkles, TrendingUp, PieChart } from 'lucide-react';
+import { Activity, BarChart3, LogOut, Search, Scan, Database, Info, Calendar, RefreshCcw, Sparkles, TrendingUp } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -204,14 +203,6 @@ const App: React.FC = () => {
               >
                 <BarChart3 size={18} /> Reports & Analytics
               </button>
-              <button 
-                onClick={() => setActiveView('investmentsReport')}
-                className={`flex items-center gap-2 py-4 px-6 text-sm font-bold border-b-2 transition-all ${
-                  activeView === 'investmentsReport' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                <PieChart size={18} /> Investments Report
-              </button>
             </nav>
             <button 
               onClick={handleLogout}
@@ -347,8 +338,6 @@ const App: React.FC = () => {
           <Portfolio demoMode={isDemo} />
         ) : activeView === 'reports' ? (
           <Reports demoMode={isDemo} />
-        ) : activeView === 'investmentsReport' ? (
-          <InvestmentsReport demoMode={isDemo} />
         ) : activeView === 'manual' ? (
           <ManualTransactions user={user} isDemo={isDemo} />
         ) : null}
